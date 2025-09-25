@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Joint Technical Plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 800px;
+            max-height: 80vh;
+        }
+        .task-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .task-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .task-card.dragging {
+            opacity: 0.6;
+            cursor: grabbing;
+        }
+        .dropzone-active {
+            outline: 2px dashed #3b82f6;
+            outline-offset: -8px;
+        }
+        .nav-active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+    <div id="app" class="container mx-auto p-4 md:p-8">
+        
+        <header class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-900">Mobile App Monetization - Joint Technical Plan</h1>
+            <p class="text-lg text-gray-600 mt-2">This dashboard provides an interactive view of the key technical workstreams and action items for optimizing mobile app monetization using Google Ad Manager (GAM).</p>
+        </header>
+
+        <main>
+            <!-- Navigation -->
+            <div class="mb-6 border-b border-gray-200">
+                <nav class="flex -mb-px space-x-6" id="nav-tabs">
+                    <button data-view="board" class="nav-tab nav-active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Task Board</button>
+                    <button data-view="timeline" class="nav-tab whitespace-nowrap py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm">Project Timeline</button>
+                </nav>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white p-4 rounded-lg shadow-sm mb-8">
+                 <p class="text-md font-semibold text-gray-700 mb-4">This section provides powerful filtering capabilities to help you focus on specific aspects of the monetization plan. Use the dropdown menus to narrow down the tasks displayed in both the Task Board and the Project Timeline views based on their phase, workstream, owner, or priority. Your selections will dynamically update the content below.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div>
+                        <label for="phaseFilter" class="block text-sm font-medium text-gray-700">Phase</label>
+                        <select id="phaseFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"></select>
+                    </div>
+                    <div>
+                        <label for="workstreamFilter" class="block text-sm font-medium text-gray-700">Workstream</label>
+                        <select id="workstreamFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"></select>
+                    </div>
+                    <div>
+                        <label for="ownerFilter" class="block text-sm font-medium text-gray-700">Owner</label>
+                        <select id="ownerFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"></select>
+                    </div>
+                    <div>
+                        <label for="priorityFilter" class="block text-sm font-medium text-gray-700">Priority</label>
+                        <select id="priorityFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"></select>
+                    </div>
+                     <div id="kpi-cards" class="grid grid-cols-3 gap-2 col-span-1 sm:col-span-2 lg:col-span-1">
+                        <div class="bg-gray-100 p-2 rounded-lg text-center">
+                            <div id="total-tasks" class="text-2xl font-bold text-gray-800">0</div>
+                            <div class="text-xs text-gray-500">Total</div>
+                        </div>
+                        <div class="bg-green-100 p-2 rounded-lg text-center">
+                            <div id="completed-tasks" class="text-2xl font-bold text-green-700">0</div>
+                            <div class="text-xs text-green-600">Done</div>
+                        </div>
+                         <div class="bg-yellow-100 p-2 rounded-lg text-center">
+                            <div id="inprogress-tasks" class="text-2xl font-bold text-yellow-700">0</div>
+                            <div class="text-xs text-yellow-600">Not Started</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Views Container -->
+            <div id="views">
+                <!-- Task Board View -->
+                <div id="board-view">
+                    <p class="text-md text-gray-600 mb-6">The Task Board provides a Kanban-style overview of all action items, organized by their current status. This view is ideal for tracking the workflow. You can click on any card to see more detailed information about the task, including its description and any dependencies. Use the filters above to focus on specific tasks.</p>
+                    <div id="task-board-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                    </div>
+                </div>
+
+                <!-- Timeline View -->
+                <div id="timeline-view" class="hidden">
+                    <p class="text-md text-gray-600 mb-6">The Project Timeline offers a Gantt-style visualization of the entire project schedule. Each bar represents a task, positioned and sized according to its target week or timeframe. Hover over any bar to get quick details about the task. This view is perfect for high-level planning and monitoring deadlines.</p>
+                    <div class="bg-white p-4 rounded-lg shadow-sm">
+                        <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                            <div class="flex flex-col gap-4 md:flex-row md:items-end md:gap-6">
+                                <div>
+                                    <label for="timelineStart" class="block text-sm font-medium text-gray-700">Timeline Start</label>
+                                    <input type="date" id="timelineStart" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" />
+                                </div>
+                                <div>
+                                    <label for="timelineEnd" class="block text-sm font-medium text-gray-700">Timeline End</label>
+                                    <input type="date" id="timelineEnd" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" />
+                                </div>
+                            </div>
+                            <button id="timelineResetBtn" class="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Reset Range</button>
+                        </div>
+                        <div class="chart-container mt-4">
+                            <canvas id="ganttChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modal -->
+        <div id="task-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <div class="flex justify-between items-center pb-3 border-b">
+                        <h3 class="text-xl leading-6 font-bold text-gray-900" id="modal-title">Task Details</h3>
+                        <button id="modal-close-btn" class="p-1 rounded-full hover:bg-gray-200">
+                            <svg class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="mt-4 text-left" id="modal-content">
+                        <!-- Dynamic content will go here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const rawTasks = [
+                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Integrate Google Mobile Ads (GMA) SDK', description: 'Ensure the latest version of the GMA SDK for both Android and iOS is implemented. Consider Firebase integration for enhanced analytics.', owner: 'Publisher', status: 'Not Started', priority: 'High', targetDate: 'Week 1', dependencies: 'Requires app developer resources.' },
+                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Register Apps in GAM', description: 'Accurately add the mobile apps within the GAM interface under `Inventory > Apps`.', owner: 'Publisher', status: 'Not Started', priority: 'High', targetDate: 'Week 1', dependencies: 'Must be done before ad units can be created.' },
+                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Strategic Ad Unit Structure', description: 'Design ad units to differentiate between apps, OS (iOS/Android), and placements. This enables granular targeting and reporting.', owner: 'Both', status: 'Not Started', priority: 'Medium', targetDate: 'Week 2', dependencies: 'Collaborative session to define the optimal structure.' },
+                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Use Key-Values', description: 'Implement key-value targeting to pass custom parameters from the app (e.g., user segments, content categories) to GAM for precise targeting.', owner: 'Publisher', status: 'Not Started', priority: 'Medium', targetDate: 'Week 3', dependencies: 'Requires app-side development work.' },
+                { phase: '2: Ad Format Implementation', workstream: 'Leverage High-Performing Ad Formats', action: 'Implement Adaptive Banners', description: 'Use Adaptive Banners to automatically optimize banner size across different devices, maximizing performance.', owner: 'Publisher', status: 'Not Started', priority: 'Medium', targetDate: 'Week 4', dependencies: '' },
+                { phase: '2: Ad Format Implementation', workstream: 'Leverage High-Performing Ad Formats', action: 'Implement Interstitial Ads', description: 'Implement interstitials at natural breaks in the app experience (e.g., between game levels, after completing a task). Goal: Increase session eCPM by 10-15% without negatively impacting user retention metrics.', owner: 'Publisher', status: 'Not Started', priority: 'High', targetDate: 'Week 4', dependencies: 'Identify appropriate trigger points in the app flow.' },
+                { phase: '2: Ad Format Implementation', workstream: 'Leverage High-Performing Ad Formats', action: 'Implement Native Ads', description: "Create Native ad formats that match the look and feel of the app's content for a better user experience and higher engagement.", owner: 'Publisher', status: 'Not Started', priority: 'Medium', targetDate: 'Week 5', dependencies: 'Requires design and development resources to match app UI.' },
+                { phase: '2: Ad Format Implementation', workstream: 'Leverage High-Performing Ad Formats', action: 'Implement Rewarded Ads', description: 'Offer users in-app rewards in exchange for watching an ad. Excellent for engagement in gaming or content apps.', owner: 'Publisher', status: 'Not Started', priority: 'High', targetDate: 'Week 5', dependencies: 'Define reward structure and integration points.' },
+                { phase: '2: Ad Format Implementation', workstream: 'Leverage High-Performing Ad Formats', action: 'Implement App Open Ads', description: 'Display an ad when the user first opens or switches back to the app to create an additional revenue opportunity.', owner: 'Publisher', status: 'Not Started', priority: 'Low', targetDate: 'Week 6', dependencies: '' },
+                { phase: '3: Revenue & Yield Optimization', workstream: 'Maximize Revenue with Yield Optimization', action: 'Set up Yield Groups', description: 'Configure Yield Groups to allow various demand sources (Ad Exchange, Open Bidding, Mediation) to compete for impressions.', owner: 'Both', status: 'Not Started', priority: 'High', targetDate: 'Week 6', dependencies: 'Foundational step for advanced yield management.' },
+                { phase: '3: Revenue & Yield Optimization', workstream: 'Maximize Revenue with Yield Optimization', action: 'Enable Open Bidding', description: 'Enable Open Bidding (if eligible) to allow third-party exchanges and networks to bid in real-time on inventory.', owner: 'Both', status: 'Not Started', priority: 'High', targetDate: 'Week 7', dependencies: 'Publisher must meet eligibility requirements.' },
+                { phase: '3: Revenue & Yield Optimization', workstream: 'Maximize Revenue with Yield Optimization', action: 'Evaluate & Select SDK Bidding Partners', description: 'Evaluate and integrate SDK Bidding with supported partners for additional demand sources.', owner: 'Both', status: 'Not Started', priority: 'Medium', targetDate: 'Week 7', dependencies: '' },
+                { phase: '3: Revenue & Yield Optimization', workstream: 'Maximize Revenue with Yield Optimization', action: 'Utilize Target CPM (tCPM)', description: 'Implement Target CPM in Unified Pricing Rules to allow Google to dynamically adjust floor prices to maximize yield.', owner: 'Google', status: 'Not Started', priority: 'Medium', targetDate: 'Week 8', dependencies: 'Based on initial performance data.' },
+                { phase: '3: Revenue & Yield Optimization', workstream: 'Maximize Revenue with Yield Optimization', action: 'Integrate Mediation', description: 'Integrate other ad networks via Mediation within Yield Groups to increase fill rates and competition.', owner: 'Publisher', status: 'Not Started', priority: 'Low', targetDate: 'Week 8', dependencies: 'Requires integrating additional SDKs from third-party networks.' },
+                { phase: '4: Data & Audience Strategy', workstream: 'Utilize Data & Audience Features', action: 'Implement Publisher Provided Identifiers (PPID)', description: 'For apps with signed-in users, use PPID to enable frequency capping and interest-based advertising in cookieless environments.', owner: 'Publisher', status: 'Not Started', priority: 'Medium', targetDate: 'Week 9', dependencies: 'Requires user authentication system.' },
+                { phase: '4: Data & Audience Strategy', workstream: 'Utilize Data & Audience Features', action: 'Implement Secure Signals', description: 'Allow the publisher to pass encrypted first-party signals or data from third-party providers to bidders in a privacy-safe way.', owner: 'Publisher', status: 'Not Started', priority: 'Low', targetDate: 'Week 9', dependencies: '' },
+                { phase: '4: Data & Audience Strategy', workstream: 'Utilize Data & Audience Features', action: 'Build Audience Segments', description: 'Build and target audience segments based on user activity within the app to increase inventory value.', owner: 'Publisher', status: 'Not Started', priority: 'Medium', targetDate: 'Week 10', dependencies: '' },
+                { phase: '5: Monitoring & Optimization', workstream: 'Monitor, Test & Optimize', action: 'Setup GAM Reporting', description: 'Establish regular reporting to track key metrics (impressions, eCPM, revenue, fill rate) segmented by app, ad unit, format, and country.', owner: 'Both', status: 'Not Started', priority: 'Medium', targetDate: 'Ongoing', dependencies: 'Define key reports and dashboards.' },
+                { phase: '5: Monitoring & Optimization', workstream: 'Monitor, Test & Optimize', action: 'Use Opportunities & Experiments', description: 'Leverage the Opportunities & Experiments section in GAM to test optimizations (e.g., pricing rules) on a small percentage of traffic.', owner: 'Both', status: 'Not Started', priority: 'Medium', targetDate: 'Ongoing', dependencies: '' },
+                { phase: '5: Monitoring & Optimization', workstream: 'Monitor, Test & Optimize', action: 'Utilize Ad Inspector', description: 'Use the Ad Inspector tool within the app to troubleshoot ad delivery, inspect the auction, and test ad source setups.', owner: 'Publisher', status: 'Not Started', priority: 'Low', targetDate: 'Ongoing', dependencies: 'Requires GMA SDK integration.' },
+                { phase: '5: Monitoring & Optimization', workstream: 'Monitor, Test & Optimize', action: 'Explore Impression-Level Ad Revenue (iLTV)', description: 'Investigate using iLTV features if available to get more granular revenue data for user-level analysis.', owner: 'Publisher', status: 'Not Started', priority: 'Low', targetDate: 'Ongoing', dependencies: '' },
+                { phase: '6: Brand Safety & Governance', workstream: 'Brand Safety & Controls', action: 'Configure Protections', description: 'Configure Protections to block unwanted ad categories, advertisers, or creative types to maintain brand safety.', owner: 'Publisher', status: 'Not Started', priority: 'High', targetDate: 'Week 2', dependencies: 'Define brand safety guidelines.' },
+                { phase: '6: Brand Safety & Governance', workstream: 'Brand Safety & Controls', action: 'Implement app-ads.txt', description: 'Correctly implement the `app-ads.txt` file to prevent unauthorized inventory sales and protect revenue.', owner: 'Publisher', status: 'Not Started', priority: 'High', targetDate: 'Week 2', dependencies: 'Critical for ensuring authorized demand.' },
+                { phase: '7: Continuous Improvement', workstream: 'Stay Updated', action: 'Keep GMA SDKs Updated', description: 'Proactively update GMA SDKs to the latest versions to take advantage of new features and optimizations.', owner: 'Publisher', status: 'Not Started', priority: 'Low', targetDate: 'Ongoing', dependencies: '' },
+                { phase: '7: Continuous Improvement', workstream: 'Stay Updated', action: 'Review GAM Help Center & Announcements', description: 'Regularly review the Google Ad Manager Help Center and product announcements for new mobile app monetization features.', owner: 'Both', status: 'Not Started', priority: 'Low', targetDate: 'Ongoing', dependencies: '' },
+            ];
+
+            const GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/a/macros/google.com/s/AKfycbxF1GPrIrRqAVXGanUWh6QkXzvEb1I5BtqqiePksGY/dev'; // Replace with Apps Script web app URL to enable Google Sheet writes
+
+            const formatDate = (date) => date.toISOString().split('T')[0];
+
+            function getDateRangeFromTarget(targetDate) {
+                const baseDate = new Date('2025-09-29T12:00:00Z'); // Project start: Monday, Sep 29, 2025
+                if (targetDate.toLowerCase() === 'ongoing') {
+                    const endDate = new Date(baseDate);
+                    endDate.setMonth(endDate.getMonth() + 6);
+                    return { startDate: formatDate(baseDate), endDate: formatDate(endDate) };
+                }
+                const weekMatch = targetDate.match(/Week (\d+)/);
+                if (weekMatch) {
+                    const weekNumber = parseInt(weekMatch[1], 10);
+                    const weekOffset = (weekNumber - 1) * 7;
+                    const startDate = new Date(baseDate);
+                    startDate.setDate(startDate.getDate() + weekOffset);
+                    const endDate = new Date(startDate);
+                    endDate.setDate(endDate.getDate() + 4);
+                    return { startDate: formatDate(startDate), endDate: formatDate(endDate) };
+                }
+                return { startDate: formatDate(baseDate), endDate: formatDate(baseDate) };
+            }
+
+            function getTimelineBounds(taskList) {
+                if (!taskList.length) {
+                    const today = new Date();
+                    return { start: formatDate(today), end: formatDate(today) };
+                }
+                const startMs = taskList.reduce((min, task) => Math.min(min, new Date(task.startDate).getTime()), Infinity);
+                const endMs = taskList.reduce((max, task) => Math.max(max, new Date(task.endDate).getTime()), -Infinity);
+                const startDate = new Date(startMs);
+                const endDate = new Date(endMs);
+                return { start: formatDate(startDate), end: formatDate(endDate) };
+            }
+
+            const tasks = rawTasks.map((task, index) => ({
+                id: index + 1,
+                ...task,
+                ...getDateRangeFromTarget(task.targetDate),
+                priority: task.priority || 'Medium',
+                notes: [] 
+            }));
+
+            const defaultTimelineRange = getTimelineBounds(tasks);
+
+            const state = {
+                currentView: 'board',
+                filters: { phase: 'All Phases', workstream: 'All Workstreams', owner: 'All Owners', priority: 'All Priorities' },
+                timelineRange: { ...defaultTimelineRange },
+                filteredTasks: [],
+                timelineAdjusted: false
+            };
+
+            let draggedTaskId = null;
+
+            const ganttChart = initializeChart();
+            const timelineStartInput = document.getElementById('timelineStart');
+            const timelineEndInput = document.getElementById('timelineEnd');
+            const timelineResetBtn = document.getElementById('timelineResetBtn');
+
+            function clearDropzoneHighlights() {
+                document.querySelectorAll('[data-dropzone="true"]').forEach(el => el.classList.remove('dropzone-active'));
+            }
+
+            function handleCardDragStart(event, taskId) {
+                draggedTaskId = taskId;
+                event.dataTransfer.setData('text/plain', String(taskId));
+                event.dataTransfer.effectAllowed = 'move';
+                event.currentTarget.classList.add('dragging');
+            }
+
+            function handleCardDragEnd(event) {
+                event.currentTarget.classList.remove('dragging');
+                clearDropzoneHighlights();
+                draggedTaskId = null;
+            }
+
+            function handleColumnDragOver(event) {
+                const transferTypes = event.dataTransfer && event.dataTransfer.types ? Array.from(event.dataTransfer.types) : [];
+                if (!draggedTaskId && !transferTypes.includes('text/plain')) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                event.currentTarget.classList.add('dropzone-active');
+            }
+
+            function handleColumnDragLeave(event) {
+                if (event.currentTarget.contains(event.relatedTarget)) return;
+                event.currentTarget.classList.remove('dropzone-active');
+            }
+
+            function handleColumnDrop(event) {
+                event.preventDefault();
+                const targetStatus = event.currentTarget.dataset.status;
+                event.currentTarget.classList.remove('dropzone-active');
+
+                const data = draggedTaskId || parseInt(event.dataTransfer.getData('text/plain'), 10);
+                const taskId = Number.isNaN(data) ? null : data;
+                if (!taskId || !targetStatus) {
+                    draggedTaskId = null;
+                    return;
+                }
+
+                const task = tasks.find(t => t.id === taskId);
+                if (!task || task.status === targetStatus) {
+                    draggedTaskId = null;
+                    return;
+                }
+
+                task.status = targetStatus;
+                draggedTaskId = null;
+                clearDropzoneHighlights();
+                applyFilters();
+            }
+
+            function syncTimelineInputs(range) {
+                timelineStartInput.value = range.start;
+                timelineEndInput.value = range.end;
+            }
+
+            function updateTimelineRange(partial) {
+                const hasStart = Object.prototype.hasOwnProperty.call(partial, 'start');
+                const hasEnd = Object.prototype.hasOwnProperty.call(partial, 'end');
+                state.timelineAdjusted = true;
+                const nextRange = { ...state.timelineRange, ...partial };
+                let startDate = new Date(nextRange.start);
+                let endDate = new Date(nextRange.end);
+
+                if (Number.isNaN(startDate.getTime())) startDate = new Date(defaultTimelineRange.start);
+                if (Number.isNaN(endDate.getTime())) endDate = new Date(defaultTimelineRange.end);
+
+                if (startDate > endDate) {
+                    if (hasStart && !hasEnd) {
+                        endDate = new Date(startDate);
+                    } else if (hasEnd && !hasStart) {
+                        startDate = new Date(endDate);
+                    } else {
+                        endDate = new Date(startDate);
+                    }
+                }
+
+                state.timelineRange = {
+                    start: formatDate(startDate),
+                    end: formatDate(endDate)
+                };
+                syncTimelineInputs(state.timelineRange);
+                renderGanttChart(state.filteredTasks);
+            }
+
+            timelineStartInput.addEventListener('change', () => updateTimelineRange({ start: timelineStartInput.value || defaultTimelineRange.start }));
+            timelineEndInput.addEventListener('change', () => updateTimelineRange({ end: timelineEndInput.value || defaultTimelineRange.end }));
+            timelineResetBtn.addEventListener('click', () => {
+                state.timelineAdjusted = false;
+                const targetRange = state.filteredTasks.length ? getTimelineBounds(state.filteredTasks) : defaultTimelineRange;
+                state.timelineRange = { ...targetRange };
+                syncTimelineInputs(state.timelineRange);
+                renderGanttChart(state.filteredTasks);
+            });
+
+            syncTimelineInputs(state.timelineRange);
+
+            function getUniqueValues(key, allLabel) {
+                return [allLabel, ...new Set(tasks.map(task => task[key]))];
+            }
+
+            function populateFilters() {
+                const phaseFilter = document.getElementById('phaseFilter');
+                const workstreamFilter = document.getElementById('workstreamFilter');
+                const ownerFilter = document.getElementById('ownerFilter');
+                const priorityFilter = document.getElementById('priorityFilter');
+                
+                const allLabels = {
+                    phase: 'All Phases', workstream: 'All Workstreams', owner: 'All Owners', priority: 'All Priorities'
+                };
+
+                phaseFilter.innerHTML = getUniqueValues('phase', allLabels.phase).map(v => `<option value="${v}">${v}</option>`).join('');
+                workstreamFilter.innerHTML = getUniqueValues('workstream', allLabels.workstream).map(v => `<option value="${v}">${v}</option>`).join('');
+                ownerFilter.innerHTML = getUniqueValues('owner', allLabels.owner).map(v => `<option value="${v}">${v}</option>`).join('');
+                priorityFilter.innerHTML = getUniqueValues('priority', allLabels.priority).map(v => `<option value="${v}">${v}</option>`).join('');
+            }
+
+            function applyFilters() {
+                state.filters.phase = document.getElementById('phaseFilter').value;
+                state.filters.workstream = document.getElementById('workstreamFilter').value;
+                state.filters.owner = document.getElementById('ownerFilter').value;
+                state.filters.priority = document.getElementById('priorityFilter').value;
+
+                const filteredTasks = tasks.filter(task => 
+                    (state.filters.phase === 'All Phases' || task.phase === state.filters.phase) &&
+                    (state.filters.workstream === 'All Workstreams' || task.workstream === state.filters.workstream) &&
+                    (state.filters.owner === 'All Owners' || task.owner === state.filters.owner) &&
+                    (state.filters.priority === 'All Priorities' || task.priority === state.filters.priority)
+                );
+
+                state.filteredTasks = filteredTasks;
+
+                if (!state.timelineAdjusted) {
+                    if (filteredTasks.length) {
+                        state.timelineRange = getTimelineBounds(filteredTasks);
+                    } else {
+                        state.timelineRange = { ...defaultTimelineRange };
+                    }
+                    syncTimelineInputs(state.timelineRange);
+                }
+                
+                updateKPIs(filteredTasks);
+                renderTaskBoard(filteredTasks);
+                renderGanttChart(filteredTasks);
+            }
+            
+            function updateKPIs(filteredTasks) {
+                document.getElementById('total-tasks').textContent = filteredTasks.length;
+                document.getElementById('completed-tasks').textContent = filteredTasks.filter(t => t.status === 'Completed').length;
+                document.getElementById('inprogress-tasks').textContent = filteredTasks.filter(t => t.status !== 'Completed').length;
+            }
+
+            function getStatusStyles(status) {
+                switch (status) {
+                    case 'Completed': return { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-400' };
+                    case 'In Progress': return { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-400' };
+                    case 'Not Started': return { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-400' };
+                    default: return { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-400' };
+                }
+            }
+            
+            function getPriorityStyles(priority) {
+                 switch (priority) {
+                    case 'High': return { bg: 'bg-red-500' };
+                    case 'Medium': return { bg: 'bg-yellow-500' };
+                    case 'Low': return { bg: 'bg-blue-500' };
+                    default: return { bg: 'bg-gray-400' };
+                }
+            }
+
+            function renderTaskBoard(filteredTasks) {
+                const container = document.getElementById('task-board-container');
+                container.innerHTML = '';
+                const statuses = ['Not Started', 'In Progress', 'Completed'];
+
+                statuses.forEach(status => {
+                    const tasksInStatus = filteredTasks.filter(task => task.status === status);
+                    const column = document.createElement('div');
+                    column.className = 'bg-gray-100 p-4 rounded-lg transition-colors';
+                    column.dataset.status = status;
+                    column.dataset.dropzone = 'true';
+                    column.addEventListener('dragover', handleColumnDragOver);
+                    column.addEventListener('dragleave', handleColumnDragLeave);
+                    column.addEventListener('drop', handleColumnDrop);
+                    const title = document.createElement('h3');
+                    title.className = 'text-xl font-bold mb-4 text-gray-700 flex items-center';
+                    const statusColor = getStatusStyles(status).border.replace('border-', 'bg-');
+                    title.innerHTML = `<span class="w-3 h-3 rounded-full ${statusColor} mr-2"></span> ${status} <span class="ml-2 text-sm bg-gray-200 text-gray-600 rounded-full px-2 py-0.5">${tasksInStatus.length}</span>`;
+                    column.appendChild(title);
+                    
+                    const cardContainer = document.createElement('div');
+                    cardContainer.className = 'space-y-4';
+                    column.appendChild(cardContainer);
+
+                    if (tasksInStatus.length > 0) {
+                        tasksInStatus.sort((a, b) => {
+                            const priorityOrder = { 'High': 1, 'Medium': 2, 'Low': 3 };
+                            return (priorityOrder[a.priority] || 4) - (priorityOrder[b.priority] || 4);
+                        }).forEach(task => {
+                            const priorityStyle = getPriorityStyles(task.priority);
+                            const card = document.createElement('div');
+                            card.className = 'task-card bg-white p-4 rounded-lg shadow-sm cursor-pointer border-l-4 ' + getStatusStyles(task.status).border;
+                            card.dataset.taskId = task.id;
+                            card.draggable = true;
+                            card.addEventListener('dragstart', event => handleCardDragStart(event, task.id));
+                            card.addEventListener('dragend', handleCardDragEnd);
+                            card.innerHTML = `
+                                <div class="flex justify-between items-start">
+                                    <p class="font-bold text-gray-800">${task.action}</p>
+                                    <span class="w-3 h-3 rounded-full ${priorityStyle.bg}" title="Priority: ${task.priority}"></span>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-1">${task.phase}</p>
+                                <div class="mt-4 flex justify-between items-center text-sm">
+                                    <span class="px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(task.status).bg} ${getStatusStyles(task.status).text}">${task.owner}</span>
+                                    <span class="text-gray-500">${task.targetDate}</span>
+                                </div>
+                            `;
+                            card.addEventListener('click', () => openTaskModal(task.id));
+                            cardContainer.appendChild(card);
+                        });
+                    } else {
+                        cardContainer.innerHTML = `<div class="text-center text-gray-500 p-4 border-2 border-dashed rounded-lg h-24 flex items-center justify-center">No tasks here.</div>`;
+                    }
+                    container.appendChild(column);
+                });
+            }
+
+            function initializeChart() {
+                const ctx = document.getElementById('ganttChart').getContext('2d');
+                return new Chart(ctx, {
+                    type: 'bar',
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    title: (context) => context[0].raw.label,
+                                    label: (context) => `Duration: ${new Date(context.raw.x[0]).toLocaleDateString()} - ${new Date(context.raw.x[1]).toLocaleDateString()}`
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: { unit: 'week' },
+                                min: new Date(state.timelineRange.start),
+                                max: new Date(state.timelineRange.end),
+                                grid: { borderColor: 'rgba(0,0,0,0.1)' },
+                                ticks: { font: { size: 10 } }
+                            },
+                            y: { ticks: { font: { size: 10 }, autoSkip: false } }
+                        }
+                    }
+                });
+            }
+
+            function renderGanttChart(filteredTasks) {
+                let startBoundary = new Date(state.timelineRange.start);
+                let endBoundary = new Date(state.timelineRange.end);
+
+                if (Number.isNaN(startBoundary.getTime())) startBoundary = new Date(defaultTimelineRange.start);
+                if (Number.isNaN(endBoundary.getTime())) endBoundary = new Date(defaultTimelineRange.end);
+                if (startBoundary > endBoundary) endBoundary = new Date(startBoundary);
+
+                ganttChart.options.scales.x.min = startBoundary;
+                ganttChart.options.scales.x.max = endBoundary;
+
+                const sortedTasks = [...filteredTasks].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+                const visibleTasks = sortedTasks.filter(task => {
+                    const taskStart = new Date(task.startDate);
+                    const taskEnd = new Date(task.endDate);
+                    return taskEnd >= startBoundary && taskStart <= endBoundary;
+                });
+
+                const data = visibleTasks.map(task => ({
+                    x: [new Date(task.startDate), new Date(task.endDate)],
+                    y: task.action,
+                    label: task.action,
+                    backgroundColor: getChartColor(task.status),
+                    borderColor: getChartColor(task.status, true),
+                    borderWidth: 1,
+                    barPercentage: 0.6,
+                }));
+
+                ganttChart.data.labels = data.map(d => d.y);
+                ganttChart.data.datasets = [{ data }];
+                ganttChart.update();
+            }
+
+            async function saveNoteToGoogleSheet(task, noteText) {
+                if (!GOOGLE_SHEET_WEBHOOK_URL) {
+                    return { ok: false, skipped: true };
+                }
+
+                const payload = {
+                    timestamp: new Date().toISOString(),
+                    taskId: task.id,
+                    action: task.action,
+                    phase: task.phase,
+                    workstream: task.workstream,
+                    owner: task.owner,
+                    priority: task.priority,
+                    status: task.status,
+                    note: noteText
+                };
+
+                const jsonPayload = JSON.stringify(payload);
+
+                const tryFetch = async (mode = 'cors') => {
+                    const requestInit = {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: jsonPayload
+                    };
+                    if (mode) requestInit.mode = mode;
+
+                    const response = await fetch(GOOGLE_SHEET_WEBHOOK_URL, requestInit);
+                    if (!response.ok) {
+                        const responseText = await response.text().catch(() => '');
+                        throw new Error(responseText || `Request failed: ${response.status}`);
+                    }
+
+                    let data;
+                    try {
+                        data = await response.clone().json();
+                    } catch (parseError) {
+                        data = await response.text().catch(() => null);
+                    }
+
+                    return { ok: true, data };
+                };
+
+                try {
+                    return await tryFetch('cors');
+                } catch (error) {
+                    console.warn('Primary note sync attempt failed', error);
+
+                    const isNetworkLikeError = error instanceof TypeError || /failed to fetch/i.test(error.message);
+
+                    if (isNetworkLikeError && navigator.sendBeacon) {
+                        try {
+                            const beaconData = new Blob([jsonPayload], { type: 'application/json' });
+                            const beaconSent = navigator.sendBeacon(GOOGLE_SHEET_WEBHOOK_URL, beaconData);
+                            if (beaconSent) {
+                                return { ok: true, fallback: 'sendBeacon' };
+                            }
+                        } catch (beaconError) {
+                            console.warn('sendBeacon fallback failed', beaconError);
+                        }
+                    }
+
+                    return { ok: false, error };
+                }
+            }
+
+            function getChartColor(status, border = false) {
+                const alpha = border ? '1.0' : '0.6';
+                if (status === 'Completed') return `rgba(74, 222, 128, ${alpha})`;
+                if (status === 'In Progress') return `rgba(250, 204, 21, ${alpha})`;
+                return `rgba(156, 163, 175, ${alpha})`;
+            }
+
+            function openTaskModal(taskId) {
+                const task = tasks.find(t => t.id === taskId);
+                if (!task) return;
+
+                const modal = document.getElementById('task-modal');
+                const modalTitle = document.getElementById('modal-title');
+                const modalContent = document.getElementById('modal-content');
+                modalTitle.textContent = task.action;
+                const priorityStyle = getPriorityStyles(task.priority);
+                const statusStyle = getStatusStyles(task.status);
+
+                modalContent.innerHTML = `
+                    <div class="space-y-4">
+                        <div><h4 class="font-semibold text-gray-700">Description</h4><p class="text-gray-600">${task.description}</p></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                            <div><h4 class="font-semibold text-gray-700">Status</h4><span class="px-3 py-1 rounded-full text-sm font-semibold ${statusStyle.bg} ${statusStyle.text}">${task.status}</span></div>
+                            <div><h4 class="font-semibold text-gray-700">Priority</h4><div class="flex items-center"><span class="w-4 h-4 rounded-full ${priorityStyle.bg} mr-2"></span><span>${task.priority}</span></div></div>
+                            <div><h4 class="font-semibold text-gray-700">Owner</h4><p class="text-gray-600">${task.owner}</p></div>
+                            <div><h4 class="font-semibold text-gray-700">Phase</h4><p class="text-gray-600">${task.phase}</p></div>
+                            <div><h4 class="font-semibold text-gray-700">Timeline</h4><p class="text-gray-600">${new Date(task.startDate).toLocaleDateString()} - ${new Date(task.endDate).toLocaleDateString()} (${task.targetDate})</p></div>
+                            <div><h4 class="font-semibold text-gray-700">Workstream</h4><p class="text-gray-600">${task.workstream}</p></div>
+                        </div>
+                        ${task.dependencies ? `<div class="border-t pt-4"><h4 class="font-semibold text-gray-700">Dependencies/Notes</h4><p class="text-gray-600">${task.dependencies}</p></div>` : ''}
+                        <div class="border-t pt-4">
+                            <h4 class="font-semibold text-gray-700 mb-2">Notes</h4>
+                            <div id="modal-notes-list" class="space-y-2 max-h-40 overflow-y-auto pr-2 mb-4"></div>
+                            <div>
+                                <textarea id="modal-note-input" class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" rows="3" placeholder="Add a new note..."></textarea>
+                                <button id="modal-save-note-btn" class="mt-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Add Note</button>
+                                <div id="modal-note-status" class="mt-2 text-sm text-gray-500 hidden"></div>
+                            </div>
+                        </div>
+                    </div>`;
+
+                const renderNotes = () => {
+                    const notesListEl = document.getElementById('modal-notes-list');
+                    if (task.notes && task.notes.length > 0) {
+                        notesListEl.innerHTML = task.notes.map(note =>
+                            `<div class="bg-gray-100 p-3 rounded-md text-gray-800 text-sm whitespace-pre-wrap">${note}</div>`
+                        ).join('');
+                    } else {
+                        notesListEl.innerHTML = '<p class="text-gray-400 text-sm">No notes yet.</p>';
+                    }
+                };
+
+                const noteInput = document.getElementById('modal-note-input');
+                const saveNoteButton = document.getElementById('modal-save-note-btn');
+                const noteStatusEl = document.getElementById('modal-note-status');
+                const statusClassMap = { success: 'text-green-600', error: 'text-red-600', info: 'text-gray-500' };
+
+                if (!noteInput || !saveNoteButton) {
+                    renderNotes();
+                    modal.classList.remove('hidden');
+                    return;
+                }
+
+                const clearNoteStatus = () => {
+                    if (!noteStatusEl) return;
+                    noteStatusEl.textContent = '';
+                    noteStatusEl.classList.add('hidden');
+                    Object.values(statusClassMap).forEach(cls => noteStatusEl.classList.remove(cls));
+                };
+
+                const setNoteStatus = (type, message) => {
+                    if (!noteStatusEl) return;
+                    Object.values(statusClassMap).forEach(cls => noteStatusEl.classList.remove(cls));
+                    noteStatusEl.classList.remove('hidden');
+                    noteStatusEl.classList.add(statusClassMap[type] || statusClassMap.info);
+                    noteStatusEl.textContent = message;
+                };
+
+                const toggleSaveButton = (disabled) => {
+                    saveNoteButton.disabled = disabled;
+                    saveNoteButton.classList.toggle('opacity-60', disabled);
+                    saveNoteButton.classList.toggle('cursor-not-allowed', disabled);
+                };
+
+                renderNotes();
+                clearNoteStatus();
+
+                noteInput.addEventListener('input', () => {
+                    if (noteStatusEl && !noteStatusEl.classList.contains('hidden')) {
+                        clearNoteStatus();
+                    }
+                });
+
+                saveNoteButton.addEventListener('click', async () => {
+                    const newNote = noteInput.value.trim();
+                    if (!newNote) {
+                        setNoteStatus('error', 'Enter a note before saving.');
+                        return;
+                    }
+
+                    task.notes.push(newNote);
+                    noteInput.value = '';
+                    renderNotes();
+                    setNoteStatus('info', 'Saving note...');
+                    toggleSaveButton(true);
+
+                    try {
+                        const result = await saveNoteToGoogleSheet(task, newNote);
+                        if (result && result.skipped) {
+                            setNoteStatus('info', 'Set GOOGLE_SHEET_WEBHOOK_URL to sync notes with Google Sheets.');
+                        } else if (result && result.ok) {
+                            if (result.fallback === 'sendBeacon') {
+                                setNoteStatus('success', 'Note queued for Google Sheet (sendBeacon fallback).');
+                            } else {
+                                setNoteStatus('success', 'Note saved to Google Sheet.');
+                            }
+                        } else {
+                            setNoteStatus('error', 'Unable to save note to Google Sheet. Check the console for details.');
+                        }
+                    } catch (error) {
+                        setNoteStatus('error', 'Unable to save note to Google Sheet. Check the console for details.');
+                    } finally {
+                        toggleSaveButton(false);
+                    }
+                });
+
+                modal.classList.remove('hidden');
+            }
+
+            function switchView(viewName) {
+                state.currentView = viewName;
+                document.querySelectorAll('.nav-tab').forEach(tab => {
+                    tab.classList.toggle('nav-active', tab.dataset.view === viewName);
+                    tab.classList.toggle('border-transparent', tab.dataset.view !== viewName);
+                    tab.classList.toggle('text-gray-500', tab.dataset.view !== viewName);
+                });
+                document.getElementById('board-view').classList.toggle('hidden', viewName !== 'board');
+                document.getElementById('timeline-view').classList.toggle('hidden', viewName !== 'timeline');
+            }
+            
+            document.getElementById('nav-tabs').addEventListener('click', e => e.target.matches('.nav-tab') && switchView(e.target.dataset.view));
+            document.getElementById('phaseFilter').addEventListener('change', applyFilters);
+            document.getElementById('workstreamFilter').addEventListener('change', applyFilters);
+            document.getElementById('ownerFilter').addEventListener('change', applyFilters);
+            document.getElementById('priorityFilter').addEventListener('change', applyFilters);
+            
+            const modal = document.getElementById('task-modal');
+            const closeBtn = document.getElementById('modal-close-btn');
+            const closeModal = () => modal.classList.add('hidden');
+            closeBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', e => (e.target.id === 'task-modal') && closeModal());
+            
+            populateFilters();
+            applyFilters();
+            switchView('board');
+        });
+    </script>
+</body>
+</html>
