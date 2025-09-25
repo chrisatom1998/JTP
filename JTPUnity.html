@@ -5,103 +5,446 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Joint Technical Plan</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     
     <style>
-        .chart-container {
+        body {
+            min-height: 100vh;
+            background: radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.08), transparent 45%), radial-gradient(circle at 100% 0%, rgba(236, 72, 153, 0.08), transparent 40%), #f8fafc;
+        }
+        .nav-tab {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            border-radius: 9999px;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            background: rgba(255, 255, 255, 0.78);
+            color: #1e293b;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.2s ease;
+        }
+        .nav-tab.nav-active {
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            color: #ffffff;
+            box-shadow: 0 18px 40px -24px rgba(37, 99, 235, 0.75);
+            border-color: transparent;
+        }
+        .nav-tab.text-slate-500 {
+            color: #475569;
+        }
+        .nav-tab:not(.nav-active):hover {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(148, 163, 184, 0.55);
+            color: #0f172a;
+            box-shadow: 0 16px 32px -24px rgba(15, 23, 42, 0.45);
+        }
+        .filters-card {
             position: relative;
+            border-radius: 28px;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(26px);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            box-shadow: 0 40px 80px -40px rgba(15, 23, 42, 0.55);
+        }
+        .filters-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(120deg, rgba(59, 130, 246, 0.08), transparent 55%);
+            pointer-events: none;
+        }
+        .filters-card > * {
+            position: relative;
+            z-index: 1;
+        }
+        .select-control {
             width: 100%;
-            height: 800px;
-            max-height: 80vh;
+            appearance: none;
+            border-radius: 18px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(255, 255, 255, 0.98) url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20"><path stroke="%236b7280" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 8l4 4 4-4"/></svg>') no-repeat right 1rem center;
+            background-size: 14px 14px;
+            padding: 0.75rem 3rem 0.75rem 1.1rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #1f2937;
+            transition: all 0.2s ease;
+            box-shadow: 0 20px 40px -32px rgba(15, 23, 42, 0.6);
+        }
+        .select-control:focus {
+            outline: none;
+            border-color: rgba(37, 99, 235, 0.65);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+        }
+        .select-control:hover {
+            border-color: rgba(148, 163, 184, 0.55);
+        }
+        .kpi-card {
+            position: relative;
+            border-radius: 24px;
+            padding: 20px 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            color: #0f172a;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 30px 60px -42px rgba(15, 23, 42, 0.58);
+            overflow: hidden;
+        }
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 60%);
+            pointer-events: none;
+        }
+        .kpi-label {
+            font-size: 0.78rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: rgba(15, 23, 42, 0.6);
+        }
+        .kpi-value {
+            font-size: 2.3rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+        .kpi-card[data-variant="total"] {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            color: #1e3a8a;
+        }
+        .kpi-card[data-variant="done"] {
+            background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+            color: #166534;
+        }
+        .kpi-card[data-variant="active"] {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            color: #92400e;
+        }
+        .task-column {
+            border-radius: 28px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(22px);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            --column-shadow: rgba(59, 130, 246, 0.35);
+            box-shadow: 0 34px 64px -42px var(--column-shadow);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .task-column:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 28px 64px -40px var(--column-shadow);
         }
         .task-card {
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            border-radius: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(18px);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 20px 40px -32px rgba(15, 23, 42, 0.18);
+            --status-shadow: rgba(59, 130, 246, 0.3);
+        }
+        .task-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(140deg, rgba(59, 130, 246, 0.12), transparent 60%);
+            opacity: 0;
+            transition: opacity 0.2s ease;
         }
         .task-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            transform: translateY(-3px);
+            box-shadow: 0 24px 48px -32px var(--status-shadow);
+        }
+        .task-card:hover::before {
+            opacity: 1;
         }
         .task-card.dragging {
             opacity: 0.6;
             cursor: grabbing;
+            box-shadow: none;
         }
         .dropzone-active {
-            outline: 2px dashed #3b82f6;
+            outline: 2px dashed rgba(59, 130, 246, 0.6);
             outline-offset: -8px;
         }
-        .nav-active {
-            border-bottom-color: #3b82f6;
-            color: #3b82f6;
+        .task-meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-radius: 9999px;
+            background: rgba(15, 23, 42, 0.05);
+            padding: 0.4rem 0.85rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #475569;
+        }
+        .timeline-wrapper {
+            overflow-x: auto;
+        }
+        .timeline-wrapper::-webkit-scrollbar {
+            height: 6px;
+        }
+        .timeline-wrapper::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .timeline-wrapper::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 9999px;
+        }
+        .timeline-table {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 12px 18px;
+            min-width: 820px;
+        }
+        .timeline-header {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: #6b7280;
+            font-weight: 700;
+        }
+        .timeline-axis-spacer {
+            height: 60px;
+        }
+        .timeline-axis-cell {
+            position: relative;
+            height: 60px;
+        }
+        .timeline-axis {
+            position: absolute;
+            inset: 0;
+            border-radius: 16px;
+            border: 1px solid rgba(229, 231, 235, 1);
+            background: rgba(248, 250, 252, 0.92);
+            overflow: hidden;
+        }
+        .timeline-axis-title {
+            position: absolute;
+            top: 6px;
+            left: 14px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: #6b7280;
+        }
+        .timeline-axis-line {
+            position: absolute;
+            top: 14px;
+            bottom: 14px;
+            width: 1px;
+            background-color: rgba(148, 163, 184, 0.32);
+        }
+        .timeline-axis-label {
+            position: absolute;
+            bottom: 6px;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            color: #4b5563;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+        .timeline-label {
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.3;
+        }
+        .timeline-label span {
+            display: block;
+            font-size: 0.75rem;
+            color: #6b7280;
+            font-weight: 500;
+            margin-top: 2px;
+        }
+        .timeline-track {
+            position: relative;
+            height: 52px;
+            border-radius: 16px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            background: rgba(248, 250, 252, 0.8);
+            overflow: hidden;
+        }
+        .timeline-bar {
+            position: absolute;
+            top: 8px;
+            bottom: 8px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            padding: 0 14px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 0.04em;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .timeline-bar:hover {
+            transform: translateY(-2px);
+        }
+        .timeline-empty {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 16px;
+            border-radius: 16px;
+            background-color: rgba(248, 250, 252, 0.9);
+            color: #6b7280;
+            font-weight: 600;
+        }
+        .timeline-empty.active {
+            display: flex;
         }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans">
-    <div id="app" class="container mx-auto p-4 md:p-8">
+    <div id="app" class="container mx-auto px-4 pb-16 pt-12">
         
-        <header class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">Mobile App Monetization - Joint Technical Plan</h1>
-            <p class="text-lg text-gray-600 mt-2">This dashboard provides an interactive view of the key technical workstreams and action items for optimizing mobile app monetization using Google Ad Manager (GAM).</p>
+        <header class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 px-6 py-10 text-white shadow-xl">
+            <div class="relative z-10 max-w-4xl">
+                <p class="text-sm uppercase tracking-[0.4em] text-blue-100">Joint Technical Plan</p>
+                <h1 class="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Mobile App Monetization Command Center</h1>
+                <p class="mt-5 text-lg text-blue-100">A collaborative workspace to align teams, track delivery, and keep the monetization roadmap on schedule.</p>
+                <div class="mt-6 flex flex-wrap gap-3">
+                    <div class="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm backdrop-blur">
+                        <span class="inline-flex h-2 w-2 rounded-full bg-emerald-300"></span>
+                        Real-time status sync
+                    </div>
+                    <div class="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm backdrop-blur">
+                        <span class="inline-flex h-2 w-2 rounded-full bg-sky-200"></span>
+                        Filters & timeline controls
+                    </div>
+                </div>
+            </div>
+            <div class="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl"></div>
+            <div class="pointer-events-none absolute -bottom-20 right-1/4 h-40 w-40 rounded-full bg-purple-400/30 blur-3xl"></div>
         </header>
 
         <main>
             <!-- Navigation -->
-            <div class="mb-6 border-b border-gray-200">
-                <nav class="flex -mb-px space-x-6" id="nav-tabs">
-                    <button data-view="board" class="nav-tab nav-active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Task Board</button>
-                    <button data-view="timeline" class="nav-tab whitespace-nowrap py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm">Project Timeline</button>
+            <div class="mt-10 mb-8">
+                <nav id="nav-tabs" class="flex flex-wrap items-center gap-2 rounded-2xl bg-white/80 p-2 shadow-lg shadow-slate-900/5 ring-1 ring-slate-200/60 backdrop-blur">
+                    <button data-view="board" class="nav-tab nav-active flex-1 min-w-[140px] whitespace-nowrap text-sm font-semibold">Task Board</button>
+                    <button data-view="timeline" class="nav-tab flex-1 min-w-[140px] whitespace-nowrap text-sm font-semibold text-slate-500">Project Timeline</button>
                 </nav>
             </div>
 
+            <div class="mb-8 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <span class="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 shadow-sm ring-1 ring-slate-200/60">
+                    <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+                    Completed
+                </span>
+                <span class="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 shadow-sm ring-1 ring-slate-200/60">
+                    <span class="inline-flex h-2.5 w-2.5 rounded-full bg-orange-400"></span>
+                    In&nbsp;Progress
+                </span>
+                <span class="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 shadow-sm ring-1 ring-slate-200/60">
+                    <span class="inline-flex h-2.5 w-2.5 rounded-full bg-slate-400"></span>
+                    Not&nbsp;Started
+                </span>
+                <span class="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 shadow-sm ring-1 ring-slate-200/60 text-slate-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
+                        <path d="M7.022 2.927a.75.75 0 10-.544-1.394l-4.5 1.75a.75.75 0 000 1.394l4.5 1.75a.75.75 0 10.544-1.394L3.02 3.75l4.002-1.823zM12.978 17.073a.75.75 0 10.544 1.394l4.5-1.75a.75.75 0 000-1.394l-4.5-1.75a.75.75 0 10-.544 1.394l4.002 1.823-4.002 1.823zM17.25 9a.75.75 0 000-1.5H2.75a.75.75 0 000 1.5h14.5z" />
+                    </svg>
+                    Drag cards to update status
+                </span>
+            </div>
+
             <!-- Filters -->
-            <div class="bg-white p-4 rounded-lg shadow-sm mb-8">
-                 <p class="text-md font-semibold text-gray-700 mb-4">This section provides powerful filtering capabilities to help you focus on specific aspects of the monetization plan. Use the dropdown menus to narrow down the tasks displayed in both the Task Board and the Project Timeline views based on their phase, workstream, owner, or priority. Your selections will dynamically update the content below.</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <section class="filters-card mb-12 px-6 py-8 lg:px-8">
+                <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
-                        <label for="phaseFilter" class="block text-sm font-medium text-gray-700">Phase</label>
-                        <select id="phaseFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"></select>
+                        <h2 class="text-xl font-semibold text-slate-800">Focus the plan</h2>
+                        <p class="mt-1 text-sm text-slate-500">Fine-tune the view by phase, workstream, owner, or priority and watch both the board and timeline respond instantly.</p>
                     </div>
-                    <div>
-                        <label for="workstreamFilter" class="block text-sm font-medium text-gray-700">Workstream</label>
-                        <select id="workstreamFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"></select>
-                    </div>
-                    <div>
-                        <label for="ownerFilter" class="block text-sm font-medium text-gray-700">Owner</label>
-                        <select id="ownerFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"></select>
-                    </div>
-                    <div>
-                        <label for="priorityFilter" class="block text-sm font-medium text-gray-700">Priority</label>
-                        <select id="priorityFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"></select>
-                    </div>
-                     <div id="kpi-cards" class="grid grid-cols-3 gap-2 col-span-1 sm:col-span-2 lg:col-span-1">
-                        <div class="bg-gray-100 p-2 rounded-lg text-center">
-                            <div id="total-tasks" class="text-2xl font-bold text-gray-800">0</div>
-                            <div class="text-xs text-gray-500">Total</div>
+                    <div class="flex flex-col gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 sm:flex-row sm:items-center sm:gap-4 sm:text-[0.65rem]">
+                        <div class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-600 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
+                                <path fill-rule="evenodd" d="M3.5 4a.5.5 0 01.5-.5h12a.5.5 0 01.4.8L12 11.2V16a.5.5 0 01-.8.4l-3-2.25a.5.5 0 01-.2-.4v-2.6L3.1 4.3A.5.5 0 013.5 4z" clip-rule="evenodd"/>
+                            </svg>
+                            Filters update board & timeline instantly
                         </div>
-                        <div class="bg-green-100 p-2 rounded-lg text-center">
-                            <div id="completed-tasks" class="text-2xl font-bold text-green-700">0</div>
-                            <div class="text-xs text-green-600">Done</div>
-                        </div>
-                         <div class="bg-yellow-100 p-2 rounded-lg text-center">
-                            <div id="inprogress-tasks" class="text-2xl font-bold text-yellow-700">0</div>
-                            <div class="text-xs text-yellow-600">Not Started</div>
-                        </div>
+                        <button id="add-task-btn" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-sm transition hover:bg-slate-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
+                                <path fill-rule="evenodd" d="M10 3.75a.75.75 0 01.75.75v4.75H15.5a.75.75 0 010 1.5h-4.75V15.5a.75.75 0 01-1.5 0v-4.75H4.5a.75.75 0 010-1.5h4.75V4.5A.75.75 0 0110 3.75z" clip-rule="evenodd" />
+                            </svg>
+                            New Task
+                        </button>
                     </div>
                 </div>
-            </div>
+
+                <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div class="space-y-2">
+                        <label for="phaseFilter" class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Phase</label>
+                        <select id="phaseFilter" class="select-control"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <label for="workstreamFilter" class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Workstream</label>
+                        <select id="workstreamFilter" class="select-control"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <label for="ownerFilter" class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Owner</label>
+                        <select id="ownerFilter" class="select-control"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <label for="priorityFilter" class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Priority</label>
+                        <select id="priorityFilter" class="select-control"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <label for="dateOrderFilter" class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Sort by Date</label>
+                        <select id="dateOrderFilter" class="select-control"></select>
+                    </div>
+                </div>
+
+                <div id="kpi-cards" class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div class="kpi-card" data-variant="total">
+                        <span class="kpi-label">In View</span>
+                        <span id="total-tasks" class="kpi-value">0</span>
+                        <span class="text-sm font-medium text-blue-900/70">Total tasks matching filters</span>
+                    </div>
+                    <div class="kpi-card" data-variant="done">
+                        <span class="kpi-label">Completed</span>
+                        <span id="completed-tasks" class="kpi-value">0</span>
+                        <span class="text-sm font-medium text-emerald-900/70">Celebrated wins so far</span>
+                    </div>
+                    <div class="kpi-card" data-variant="active">
+                        <span class="kpi-label">In Motion</span>
+                        <span id="inprogress-tasks" class="kpi-value">0</span>
+                        <span class="text-sm font-medium text-amber-900/70">Work still underway</span>
+                    </div>
+                </div>
+            </section>
 
             <!-- Views Container -->
             <div id="views">
                 <!-- Task Board View -->
                 <div id="board-view">
-                    <p class="text-md text-gray-600 mb-6">The Task Board provides a Kanban-style overview of all action items, organized by their current status. This view is ideal for tracking the workflow. You can click on any card to see more detailed information about the task, including its description and any dependencies. Use the filters above to focus on specific tasks.</p>
-                    <div id="task-board-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                    <p class="mb-6 text-sm leading-relaxed text-slate-500 md:text-base">The Task Board offers a kanban snapshot of every initiative. Drag cards between columns as work progresses, open any task for richer detail, and use the filters above to focus the team on what matters right now.</p>
+                    <div id="task-board-container" class="grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
                     </div>
                 </div>
 
                 <!-- Timeline View -->
                 <div id="timeline-view" class="hidden">
-                    <p class="text-md text-gray-600 mb-6">The Project Timeline offers a Gantt-style visualization of the entire project schedule. Each bar represents a task, positioned and sized according to its target week or timeframe. Hover over any bar to get quick details about the task. This view is perfect for high-level planning and monitoring deadlines.</p>
+                    <p class="mb-6 text-sm leading-relaxed text-slate-500 md:text-base">The Project Timeline reframes the plan as a horizontal schedule. Bars resize as you adjust the calendar window, and clicking any row jumps straight into detailed task context.</p>
                     <div class="bg-white p-4 rounded-lg shadow-sm">
                         <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                             <div class="flex flex-col gap-4 md:flex-row md:items-end md:gap-6">
@@ -116,8 +459,9 @@
                             </div>
                             <button id="timelineResetBtn" class="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Reset Range</button>
                         </div>
-                        <div class="chart-container mt-4">
-                            <canvas id="ganttChart"></canvas>
+                        <div class="timeline-wrapper mt-4">
+                            <div id="timeline-empty" class="timeline-empty">Adjust the filters or extend the date range to reveal scheduled work.</div>
+                            <div id="timeline-table" class="timeline-table hidden"></div>
                         </div>
                     </div>
                 </div>
@@ -128,13 +472,20 @@
         <div id="task-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
                 <div class="mt-3">
-                    <div class="flex justify-between items-center pb-3 border-b">
-                        <h3 class="text-xl leading-6 font-bold text-gray-900" id="modal-title">Task Details</h3>
-                        <button id="modal-close-btn" class="p-1 rounded-full hover:bg-gray-200">
-                            <svg class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
+                    <div class="flex flex-col gap-3 pb-3 border-b sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h3 class="text-xl leading-6 font-bold text-gray-900" id="modal-title">Task Details</h3>
+                            <p id="modal-subtitle" class="mt-1 text-sm text-gray-500"></p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="modal-edit-btn" class="hidden rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 transition hover:border-slate-400 hover:text-slate-700">Edit</button>
+                            <button id="modal-delete-btn" class="hidden rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-500 transition hover:border-red-300 hover:text-red-600">Delete</button>
+                            <button id="modal-close-btn" class="p-1 rounded-full hover:bg-gray-200">
+                                <svg class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     <div class="mt-4 text-left" id="modal-content">
                         <!-- Dynamic content will go here -->
@@ -177,6 +528,11 @@
             const GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbxF1GPrIrRqAVXGanUWh6QkXzvEb1I5BtqqiePksGY/exec'; // Replace with Apps Script web app URL to enable Google Sheet writes
 
             const formatDate = (date) => date.toISOString().split('T')[0];
+            const escapeHtml = (value) => {
+                if (typeof value !== 'string') return value;
+                const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" };
+                return value.replace(/[&<>"']/g, char => map[char]);
+            };
             const MS_IN_DAY = 24 * 60 * 60 * 1000;
             const displayDateFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 
@@ -193,7 +549,7 @@
             }
 
             function getDateRangeFromTarget(targetDate) {
-                const baseDate = new Date('2025-09-29T12:00:00Z'); // Project start: Monday, Sep 29, 2025
+                const baseDate = new Date('2025-09-22T12:00:00Z'); // Project start: Monday, Sep 22, 2025
                 if (targetDate.toLowerCase() === 'ongoing') {
                     const endDate = new Date(baseDate);
                     endDate.setMonth(endDate.getMonth() + 6);
@@ -224,6 +580,22 @@
                 return { start: formatDate(startDate), end: formatDate(endDate) };
             }
 
+            function sortTasksByDate(taskList, order = 'asc') {
+                const direction = order === 'desc' ? -1 : 1;
+                return [...taskList].sort((a, b) => {
+                    const startDiff = new Date(a.startDate) - new Date(b.startDate);
+                    if (startDiff !== 0) return direction * startDiff;
+
+                    const endDiff = new Date(a.endDate) - new Date(b.endDate);
+                    if (endDiff !== 0) return direction * endDiff;
+
+                    const priorityDiff = (priorityRanks[a.priority] || 99) - (priorityRanks[b.priority] || 99);
+                    if (priorityDiff !== 0) return priorityDiff;
+
+                    return direction * a.action.localeCompare(b.action);
+                });
+            }
+
             const tasks = rawTasks.map((task, index) => ({
                 id: index + 1,
                 ...task,
@@ -233,21 +605,58 @@
             }));
 
             const defaultTimelineRange = getTimelineBounds(tasks);
+            const initialSortOrder = 'asc';
+            let nextTaskId = tasks.length + 1;
+
+            function getTimelineStyle(status) {
+                switch (status) {
+                    case 'Completed':
+                        return {
+                            gradient: 'linear-gradient(135deg, #34d399, #10b981)',
+                            shadow: 'rgba(16, 185, 129, 0.35)',
+                            accent: '#10b981'
+                        };
+                    case 'In Progress':
+                        return {
+                            gradient: 'linear-gradient(135deg, #fbbf24, #f97316)',
+                            shadow: 'rgba(249, 115, 22, 0.38)',
+                            accent: '#f97316'
+                        };
+                    case 'Blocked':
+                        return {
+                            gradient: 'linear-gradient(135deg, #fca5a5, #ef4444)',
+                            shadow: 'rgba(239, 68, 68, 0.38)',
+                            accent: '#ef4444'
+                        };
+                    case 'Not Started':
+                    default:
+                        return {
+                            gradient: 'linear-gradient(135deg, #cbd5f5, #94a3b8)',
+                            shadow: 'rgba(148, 163, 184, 0.35)',
+                            accent: '#64748b'
+                        };
+                }
+            }
 
             const state = {
                 currentView: 'board',
                 filters: { phase: 'All Phases', workstream: 'All Workstreams', owner: 'All Owners', priority: 'All Priorities' },
+                sortOrder: initialSortOrder,
                 timelineRange: { ...defaultTimelineRange },
-                filteredTasks: [],
+                filteredTasks: sortTasksByDate(tasks, initialSortOrder),
                 timelineAdjusted: false
             };
 
+            const boardStatuses = ['Not Started', 'In Progress', 'Completed'];
+            const priorityRanks = { High: 1, Medium: 2, Low: 3 };
+
             let draggedTaskId = null;
 
-            const ganttChart = initializeChart();
             const timelineStartInput = document.getElementById('timelineStart');
             const timelineEndInput = document.getElementById('timelineEnd');
             const timelineResetBtn = document.getElementById('timelineResetBtn');
+            const timelineTable = document.getElementById('timeline-table');
+            const timelineEmpty = document.getElementById('timeline-empty');
 
             function clearDropzoneHighlights() {
                 document.querySelectorAll('[data-dropzone="true"]').forEach(el => el.classList.remove('dropzone-active'));
@@ -334,7 +743,7 @@
                     end: formatDate(endDate)
                 };
                 syncTimelineInputs(state.timelineRange);
-                renderGanttChart(state.filteredTasks);
+                renderTimeline(state.filteredTasks);
             }
 
             timelineStartInput.addEventListener('change', () => updateTimelineRange({ start: timelineStartInput.value || defaultTimelineRange.start }));
@@ -344,7 +753,7 @@
                 const targetRange = state.filteredTasks.length ? getTimelineBounds(state.filteredTasks) : defaultTimelineRange;
                 state.timelineRange = { ...targetRange };
                 syncTimelineInputs(state.timelineRange);
-                renderGanttChart(state.filteredTasks);
+                renderTimeline(state.filteredTasks);
             });
 
             syncTimelineInputs(state.timelineRange);
@@ -353,11 +762,28 @@
                 return [allLabel, ...new Set(tasks.map(task => task[key]))];
             }
 
-            function populateFilters() {
+            function getTaskValueOptions(key) {
+                return Array.from(new Set(tasks
+                    .map(task => task[key])
+                    .filter(value => typeof value === 'string' && value.trim() !== '')))
+                    .sort((a, b) => a.localeCompare(b));
+            }
+
+            function populateFilters(options = {}) {
+                const { preserveSelection = false } = options;
                 const phaseFilter = document.getElementById('phaseFilter');
                 const workstreamFilter = document.getElementById('workstreamFilter');
                 const ownerFilter = document.getElementById('ownerFilter');
                 const priorityFilter = document.getElementById('priorityFilter');
+                const dateOrderFilter = document.getElementById('dateOrderFilter');
+
+                const previousValues = preserveSelection ? {
+                    phase: phaseFilter.value,
+                    workstream: workstreamFilter.value,
+                    owner: ownerFilter.value,
+                    priority: priorityFilter.value,
+                    sortOrder: dateOrderFilter.value
+                } : {};
                 
                 const allLabels = {
                     phase: 'All Phases', workstream: 'All Workstreams', owner: 'All Owners', priority: 'All Priorities'
@@ -367,6 +793,27 @@
                 workstreamFilter.innerHTML = getUniqueValues('workstream', allLabels.workstream).map(v => `<option value="${v}">${v}</option>`).join('');
                 ownerFilter.innerHTML = getUniqueValues('owner', allLabels.owner).map(v => `<option value="${v}">${v}</option>`).join('');
                 priorityFilter.innerHTML = getUniqueValues('priority', allLabels.priority).map(v => `<option value="${v}">${v}</option>`).join('');
+
+                const sortOptions = [
+                    { value: 'asc', label: 'Earliest first' },
+                    { value: 'desc', label: 'Latest first' }
+                ];
+                dateOrderFilter.innerHTML = sortOptions.map(option => `<option value="${option.value}">${option.label}</option>`).join('');
+                dateOrderFilter.value = preserveSelection && previousValues.sortOrder ? previousValues.sortOrder : state.sortOrder;
+
+                if (preserveSelection) {
+                    const assignIfAvailable = (select, value) => {
+                        if (!value) return;
+                        const optionsList = Array.from(select.options).map(opt => opt.value);
+                        if (optionsList.includes(value)) {
+                            select.value = value;
+                        }
+                    };
+                    assignIfAvailable(phaseFilter, previousValues.phase);
+                    assignIfAvailable(workstreamFilter, previousValues.workstream);
+                    assignIfAvailable(ownerFilter, previousValues.owner);
+                    assignIfAvailable(priorityFilter, previousValues.priority);
+                }
             }
 
             function applyFilters() {
@@ -374,6 +821,10 @@
                 state.filters.workstream = document.getElementById('workstreamFilter').value;
                 state.filters.owner = document.getElementById('ownerFilter').value;
                 state.filters.priority = document.getElementById('priorityFilter').value;
+                const sortSelect = document.getElementById('dateOrderFilter');
+                if (sortSelect) {
+                    state.sortOrder = sortSelect.value || initialSortOrder;
+                }
 
                 const filteredTasks = tasks.filter(task => 
                     (state.filters.phase === 'All Phases' || task.phase === state.filters.phase) &&
@@ -382,20 +833,21 @@
                     (state.filters.priority === 'All Priorities' || task.priority === state.filters.priority)
                 );
 
-                state.filteredTasks = filteredTasks;
+                const sortedTasks = sortTasksByDate(filteredTasks, state.sortOrder);
+                state.filteredTasks = sortedTasks;
 
                 if (!state.timelineAdjusted) {
-                    if (filteredTasks.length) {
-                        state.timelineRange = getTimelineBounds(filteredTasks);
+                    if (sortedTasks.length) {
+                        state.timelineRange = getTimelineBounds(sortedTasks);
                     } else {
                         state.timelineRange = { ...defaultTimelineRange };
                     }
                     syncTimelineInputs(state.timelineRange);
                 }
                 
-                updateKPIs(filteredTasks);
-                renderTaskBoard(filteredTasks);
-                renderGanttChart(filteredTasks);
+                updateKPIs(sortedTasks);
+                renderTaskBoard(sortedTasks);
+                renderTimeline(sortedTasks);
             }
             
             function updateKPIs(filteredTasks) {
@@ -425,345 +877,315 @@
             function renderTaskBoard(filteredTasks) {
                 const container = document.getElementById('task-board-container');
                 container.innerHTML = '';
-                const statuses = ['Not Started', 'In Progress', 'Completed'];
+                const statuses = boardStatuses;
 
                 statuses.forEach(status => {
                     const tasksInStatus = filteredTasks.filter(task => task.status === status);
+                    const statusPalette = getTimelineStyle(status);
                     const column = document.createElement('div');
-                    column.className = 'bg-gray-100 p-4 rounded-lg transition-colors';
+                    column.className = 'task-column';
                     column.dataset.status = status;
                     column.dataset.dropzone = 'true';
+                    column.style.setProperty('--status-accent', statusPalette.accent);
+                    column.style.borderColor = `${statusPalette.accent}22`;
+                    column.style.setProperty('--column-shadow', statusPalette.shadow);
                     column.addEventListener('dragover', handleColumnDragOver);
                     column.addEventListener('dragleave', handleColumnDragLeave);
                     column.addEventListener('drop', handleColumnDrop);
-                    const title = document.createElement('h3');
-                    title.className = 'text-xl font-bold mb-4 text-gray-700 flex items-center';
-                    const statusColor = getStatusStyles(status).border.replace('border-', 'bg-');
-                    title.innerHTML = `<span class="w-3 h-3 rounded-full ${statusColor} mr-2"></span> ${status} <span class="ml-2 text-sm bg-gray-200 text-gray-600 rounded-full px-2 py-0.5">${tasksInStatus.length}</span>`;
+
+                    const countLabel = tasksInStatus.length === 1 ? 'Task' : 'Tasks';
+                    const title = document.createElement('div');
+                    title.className = 'space-y-3';
+                    title.innerHTML = `
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <span class="inline-flex h-2.5 w-2.5 rounded-full" style="background:${statusPalette.accent};"></span>
+                                <span class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">${status}</span>
+                            </div>
+                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">${tasksInStatus.length} ${countLabel}</span>
+                        </div>
+                    `;
                     column.appendChild(title);
-                    
+
                     const cardContainer = document.createElement('div');
-                    cardContainer.className = 'space-y-4';
+                    cardContainer.className = 'space-y-5';
                     column.appendChild(cardContainer);
 
                     if (tasksInStatus.length > 0) {
-                        tasksInStatus.sort((a, b) => {
-                            const priorityOrder = { 'High': 1, 'Medium': 2, 'Low': 3 };
-                            return (priorityOrder[a.priority] || 4) - (priorityOrder[b.priority] || 4);
-                        }).forEach(task => {
-                            const priorityStyle = getPriorityStyles(task.priority);
-                            const card = document.createElement('div');
-                            card.className = 'task-card bg-white p-4 rounded-lg shadow-sm cursor-pointer border-l-4 ' + getStatusStyles(task.status).border;
-                            card.dataset.taskId = task.id;
-                            card.draggable = true;
-                            card.addEventListener('dragstart', event => handleCardDragStart(event, task.id));
-                            card.addEventListener('dragend', handleCardDragEnd);
-                            card.innerHTML = `
-                                <div class="flex justify-between items-start">
-                                    <p class="font-bold text-gray-800">${task.action}</p>
-                                    <span class="w-3 h-3 rounded-full ${priorityStyle.bg}" title="Priority: ${task.priority}"></span>
-                                </div>
-                                <p class="text-sm text-gray-500 mt-1">${task.phase}</p>
-                                <div class="mt-4 flex justify-between items-center text-sm">
-                                    <span class="px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(task.status).bg} ${getStatusStyles(task.status).text}">${task.owner}</span>
-                                    <span class="text-gray-500">${task.targetDate}</span>
-                                </div>
-                            `;
-                            card.addEventListener('click', () => openTaskModal(task.id));
-                            cardContainer.appendChild(card);
-                        });
+                        const orderedTasks = sortTasksByDate(tasksInStatus, state.sortOrder);
+                        orderedTasks.forEach(task => {
+                                const priorityStyle = getPriorityStyles(task.priority);
+                                const taskPalette = getTimelineStyle(task.status);
+                                const dateRangeLabel = formatDisplayRange(new Date(task.startDate), new Date(task.endDate));
+                                const actionLabel = escapeHtml(task.action);
+                                const phaseLabel = escapeHtml(task.phase);
+                                const ownerLabel = escapeHtml(task.owner);
+                                const workstreamLabel = escapeHtml(task.workstream);
+                                const priorityLabel = escapeHtml(task.priority);
+                                const statusLabel = escapeHtml(task.status);
+                                const targetDateLabel = task.targetDate ? escapeHtml(task.targetDate) : '';
+
+                                const priorityBadge = `
+                                    <span class="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                        <span class="h-2.5 w-2.5 rounded-full ${priorityStyle.bg}"></span>${priorityLabel}
+                                    </span>`;
+
+                                const statusBadge = `
+                                    <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[0.7rem] font-semibold text-slate-600">
+                                        <span class="h-2 w-2 rounded-full" style="background:${taskPalette.accent};"></span>${statusLabel}
+                                    </span>`;
+
+                                const ownerBadge = `
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-white/70 px-3 py-1 text-[0.7rem] font-semibold text-slate-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-3.5 w-3.5 text-slate-400">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 6.75a3 3 0 11-6 0 3 3 0 016 0zM4.5 20.25a6.75 6.75 0 1113.5 0" />
+                                        </svg>
+                                        ${ownerLabel}
+                                    </span>`;
+
+                                const scheduleLabel = `${dateRangeLabel}${targetDateLabel ? ' · ' + targetDateLabel : ''}`;
+                                const dateBadge = `
+                                    <span class="inline-flex items-center gap-1 text-[0.7rem] font-semibold text-slate-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-3.5 w-3.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 9h18M4.5 7.5h15a1.5 1.5 0 011.5 1.5v10.5a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 19.5V9a1.5 1.5 0 011.5-1.5z" />
+                                        </svg>
+                                        ${scheduleLabel}
+                                    </span>`;
+
+                                const workstreamBadge = `
+                                    <span class="task-meta-pill">${workstreamLabel}</span>`;
+
+                                const dependencyText = escapeHtml(task.dependencies);
+                                const dependencyBadge = task.dependencies
+                                    ? `
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-purple-50 px-3 py-1 text-[0.7rem] font-semibold text-purple-600" title="${dependencyText}">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-3.5 w-3.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75a4.5 4.5 0 016.364 0l3.636 3.637a4.5 4.5 0 010 6.364l-.977.977a4.5 4.5 0 01-6.364 0l-.848-.848" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25a4.5 4.5 0 01-6.364 0l-3.636-3.637a4.5 4.5 0 010-6.364l.977-.977a4.5 4.5 0 016.364 0l.848.848" />
+                                            </svg>
+                                            Dependencies
+                                        </span>`
+                                    : '';
+
+                                const card = document.createElement('div');
+                                card.className = 'task-card group cursor-pointer select-none';
+                                card.dataset.taskId = task.id;
+                                card.dataset.status = task.status;
+                                card.draggable = true;
+                                card.style.borderLeft = `4px solid ${taskPalette.accent}`;
+                                card.style.setProperty('--status-shadow', taskPalette.shadow);
+                                card.addEventListener('dragstart', event => handleCardDragStart(event, task.id));
+                                card.addEventListener('dragend', handleCardDragEnd);
+                                card.innerHTML = `
+                                    <div class="flex flex-col gap-4">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div>
+                                                <h4 class="text-base font-semibold text-slate-900 leading-tight">${actionLabel}</h4>
+                                                <p class="mt-2 text-sm text-slate-500">${phaseLabel}</p>
+                                            </div>
+                                            ${priorityBadge}
+                                        </div>
+                                        <div class="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+                                            ${statusBadge}
+                                            ${ownerBadge}
+                                            ${dateBadge}
+                                        </div>
+                                        <div class="flex flex-wrap gap-2 text-[0.7rem] font-semibold text-slate-400">
+                                            ${workstreamBadge}
+                                            ${dependencyBadge}
+                                        </div>
+                                    </div>
+                                `;
+                                card.addEventListener('click', () => openTaskModal(task.id));
+                                cardContainer.appendChild(card);
+                            });
                     } else {
-                        cardContainer.innerHTML = `<div class="text-center text-gray-500 p-4 border-2 border-dashed rounded-lg h-24 flex items-center justify-center">No tasks here.</div>`;
+                        cardContainer.innerHTML = `<div class="flex min-h-[120px] items-center justify-center rounded-2xl border border-dashed border-slate-300/60 bg-white/60 px-4 text-sm font-medium text-slate-400">No tasks in this stage.</div>`;
                     }
                     container.appendChild(column);
                 });
             }
 
-            function initializeChart() {
-                const ctx = document.getElementById('ganttChart').getContext('2d');
-                const chart = new Chart(ctx, {
-                    type: 'bar',
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        animation: false,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    title: (context) => context[0].raw.label,
-                                    label: (context) => `Duration: ${new Date(context.raw.x[0]).toLocaleDateString()} - ${new Date(context.raw.x[1]).toLocaleDateString()}`
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                type: 'time',
-                                time: { unit: 'week' },
-                                min: new Date(state.timelineRange.start),
-                                max: new Date(state.timelineRange.end),
-                                grid: { borderColor: 'rgba(0,0,0,0.1)' },
-                                ticks: { font: { size: 10 } }
-                            },
-                            y: { ticks: { font: { size: 10 }, autoSkip: false } }
-                        }
-                    }
+            function renderTimeline(filteredTasks) {
+                if (!timelineTable || !timelineEmpty) return;
+
+                let rangeStart = new Date(state.timelineRange.start);
+                let rangeEnd = new Date(state.timelineRange.end);
+
+                if (Number.isNaN(rangeStart.getTime())) rangeStart = new Date(defaultTimelineRange.start);
+                if (Number.isNaN(rangeEnd.getTime())) rangeEnd = new Date(defaultTimelineRange.end);
+                if (rangeStart > rangeEnd) {
+                    rangeEnd = new Date(rangeStart.getTime() + MS_IN_DAY);
+                }
+
+                const rangeStartMs = rangeStart.getTime();
+                const rangeEndMs = rangeEnd.getTime();
+                const totalMs = Math.max(rangeEndMs - rangeStartMs, MS_IN_DAY);
+
+                const overlappingTasks = (Array.isArray(filteredTasks) ? filteredTasks : [])
+                    .map(task => ({ ...task }))
+                    .filter(task => {
+                        const taskStart = new Date(task.startDate);
+                        const taskEnd = new Date(task.endDate);
+                        return taskEnd >= rangeStart && taskStart <= rangeEnd;
+                    })
+                    .sort((a, b) => {
+                        const delta = new Date(a.startDate) - new Date(b.startDate);
+                        return delta !== 0 ? delta : a.action.localeCompare(b.action);
+                    });
+
+                timelineTable.innerHTML = '';
+
+                if (!overlappingTasks.length) {
+                    timelineTable.classList.add('hidden');
+                    timelineEmpty.classList.add('active');
+                    return;
+                }
+
+                timelineEmpty.classList.remove('active');
+                timelineTable.classList.remove('hidden');
+
+                const taskHeader = document.createElement('div');
+                taskHeader.className = 'timeline-header';
+                taskHeader.textContent = 'Task';
+                timelineTable.appendChild(taskHeader);
+
+                const scheduleHeader = document.createElement('div');
+                scheduleHeader.className = 'timeline-header';
+                scheduleHeader.textContent = 'Schedule';
+                timelineTable.appendChild(scheduleHeader);
+
+                const axisSpacer = document.createElement('div');
+                axisSpacer.className = 'timeline-axis-spacer';
+                timelineTable.appendChild(axisSpacer);
+
+                const axisCell = document.createElement('div');
+                axisCell.className = 'timeline-axis-cell';
+                const axis = document.createElement('div');
+                axis.className = 'timeline-axis';
+
+                const axisTitle = document.createElement('div');
+                axisTitle.className = 'timeline-axis-title';
+                axisTitle.textContent = 'Timeline';
+                axis.appendChild(axisTitle);
+
+                buildTimelineTicks(rangeStart, rangeEnd, totalMs).forEach(tick => {
+                    const clampedPosition = Math.min(Math.max(tick.position, 0), 1) * 100;
+                    const line = document.createElement('div');
+                    line.className = 'timeline-axis-line';
+                    line.style.left = `${clampedPosition}%`;
+                    axis.appendChild(line);
+
+                    const label = document.createElement('div');
+                    label.className = 'timeline-axis-label';
+                    label.style.left = `${clampedPosition}%`;
+                    label.textContent = tick.label;
+                    axis.appendChild(label);
                 });
-                enableTimelineDragging(chart);
-                return chart;
+
+                axisCell.appendChild(axis);
+                timelineTable.appendChild(axisCell);
+
+                overlappingTasks.forEach(task => {
+                    const labelCell = document.createElement('div');
+                    const actionLabel = escapeHtml(task.action);
+                    const phaseLabel = escapeHtml(task.phase);
+                    const ownerLabel = escapeHtml(task.owner);
+                    const workstreamLabel = escapeHtml(task.workstream);
+                    const targetDateLabel = task.targetDate ? escapeHtml(task.targetDate) : '';
+                    labelCell.className = 'timeline-label';
+                    labelCell.innerHTML = `${actionLabel}<span>${phaseLabel}</span>`;
+                    labelCell.title = `${workstreamLabel} • ${ownerLabel}`;
+                    labelCell.style.cursor = 'pointer';
+                    labelCell.addEventListener('click', () => openTaskModal(task.id));
+                    timelineTable.appendChild(labelCell);
+
+                    const track = document.createElement('div');
+                    track.className = 'timeline-track';
+                    track.dataset.taskId = task.id;
+                    const startDateObj = new Date(task.startDate);
+                    const endDateObj = new Date(task.endDate);
+                    const palette = getTimelineStyle(task.status);
+                    const scheduleLabel = formatDisplayRange(startDateObj, endDateObj);
+                    track.title = `${ownerLabel} • ${scheduleLabel}`;
+                    track.style.cursor = 'pointer';
+                    track.style.borderColor = `${palette.accent}33`;
+                    track.style.background = `linear-gradient(135deg, ${palette.accent}1f, rgba(248, 250, 252, 0.88))`;
+                    track.addEventListener('click', () => openTaskModal(task.id));
+
+                    const bar = document.createElement('div');
+                    bar.className = 'timeline-bar';
+                    bar.dataset.taskId = task.id;
+                    bar.dataset.status = task.status;
+                    bar.style.background = palette.gradient;
+                    bar.style.boxShadow = `0 24px 48px -32px ${palette.shadow}`;
+                    bar.style.border = '1px solid rgba(255, 255, 255, 0.25)';
+                    let barLabel = scheduleLabel;
+                    if (targetDateLabel) {
+                        barLabel += ` · ${targetDateLabel}`;
+                    }
+                    bar.textContent = barLabel;
+                    bar.setAttribute('aria-label', `${actionLabel} runs ${barLabel}`);
+
+                    const taskStartMs = startDateObj.getTime();
+                    const taskEndMs = endDateObj.getTime();
+                    const clampedStart = Math.max(taskStartMs, rangeStartMs);
+                    const clampedEnd = Math.min(taskEndMs, rangeEndMs);
+                    const startPercent = ((clampedStart - rangeStartMs) / totalMs) * 100;
+                    const endPercent = ((clampedEnd - rangeStartMs) / totalMs) * 100;
+                    const safeStart = Math.max(Math.min(startPercent, 100), 0);
+                    const safeEnd = Math.max(Math.min(endPercent, 100), safeStart);
+                    const widthPercent = Math.max(safeEnd - safeStart, 3);
+
+                    bar.style.left = `${safeStart}%`;
+                    bar.style.width = `${Math.min(widthPercent, 100 - safeStart)}%`;
+
+                    track.appendChild(bar);
+                    timelineTable.appendChild(track);
+                });
             }
 
-            function renderGanttChart(filteredTasks) {
-                let startBoundary = new Date(state.timelineRange.start);
-                let endBoundary = new Date(state.timelineRange.end);
+            function buildTimelineTicks(rangeStart, rangeEnd, totalMs) {
+                const ticks = [];
+                const startMs = rangeStart.getTime();
+                const endMs = rangeEnd.getTime();
+                const seen = new Set();
 
-                if (Number.isNaN(startBoundary.getTime())) startBoundary = new Date(defaultTimelineRange.start);
-                if (Number.isNaN(endBoundary.getTime())) endBoundary = new Date(defaultTimelineRange.end);
-                if (startBoundary > endBoundary) endBoundary = new Date(startBoundary);
+                const totalDays = Math.max(Math.round(totalMs / MS_IN_DAY), 1);
+                const maxTicks = 8;
+                let stepDays = Math.ceil(totalDays / (maxTicks - 1));
+                stepDays = Math.max(7, stepDays);
+                stepDays = Math.ceil(stepDays / 7) * 7;
 
-                ganttChart.options.scales.x.min = startBoundary;
-                ganttChart.options.scales.x.max = endBoundary;
+                const registerTick = (ms) => {
+                    const clamped = Math.min(Math.max(ms, startMs), endMs);
+                    const position = (clamped - startMs) / totalMs;
+                    const key = position.toFixed(3);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    ticks.push({ position, label: formatTickLabel(new Date(clamped)) });
+                };
 
-                const sortedTasks = [...filteredTasks].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-                const visibleTasks = sortedTasks.filter(task => {
-                    const taskStart = new Date(task.startDate);
-                    const taskEnd = new Date(task.endDate);
-                    return taskEnd >= startBoundary && taskStart <= endBoundary;
-                });
+                registerTick(startMs);
 
-                const data = visibleTasks.map(task => {
-                    const startMs = new Date(task.startDate).getTime();
-                    const endMs = new Date(task.endDate).getTime();
-                    return {
-                        x: [startMs, endMs],
-                        y: task.action,
-                        label: task.action,
-                        taskId: task.id,
-                        backgroundColor: getChartColor(task.status),
-                        borderColor: getChartColor(task.status, true),
-                        borderWidth: 1,
-                        barPercentage: 0.6,
-                    };
-                });
+                const cursor = new Date(rangeStart);
+                cursor.setUTCHours(0, 0, 0, 0);
+                cursor.setDate(cursor.getDate() + stepDays);
 
-                ganttChart.data.labels = data.map(d => d.y);
-                ganttChart.data.datasets = [{ data, parsing: false, borderSkipped: false }];
-                ganttChart.update();
+                let iterations = 0;
+                const maxIterations = 104; // roughly two years of weekly ticks
+                while (cursor.getTime() < endMs && iterations < maxIterations) {
+                    registerTick(cursor.getTime());
+                    cursor.setDate(cursor.getDate() + stepDays);
+                    iterations += 1;
+                }
+
+                registerTick(endMs);
+                return ticks.sort((a, b) => a.position - b.position);
             }
 
-            function enableTimelineDragging(chart) {
-                const canvas = chart.canvas;
-                let dragState = null;
-
-                const getPointerPixel = (event) => {
-                    const rect = canvas.getBoundingClientRect();
-                    return event.clientX - rect.left;
-                };
-
-                const getPointerValue = (event) => {
-                    const value = chart.scales.x.getValueForPixel(getPointerPixel(event));
-                    return Number.isNaN(value) ? null : value;
-                };
-
-                const resolveDataPoint = (element) => {
-                    if (!element) return {};
-                    const dataset = chart.data.datasets[element.datasetIndex];
-                    const dataPoint = dataset?.data?.[element.index];
-                    return { dataset, dataPoint };
-                };
-
-                const getOrderedRange = (range) => {
-                    const start = Math.min(range[0], range[1]);
-                    const end = Math.max(range[0], range[1]);
-                    return [start, end];
-                };
-
-                const determineMode = (event, element) => {
-                    const { dataPoint } = resolveDataPoint(element);
-                    if (!dataPoint || !Array.isArray(dataPoint.x)) return null;
-                    const [start, end] = getOrderedRange(dataPoint.x);
-                    const pointerPx = getPointerPixel(event);
-                    const startPx = chart.scales.x.getPixelForValue(start);
-                    const endPx = chart.scales.x.getPixelForValue(end);
-                    const proximity = 8;
-                    if (Math.abs(pointerPx - startPx) <= proximity) return 'resize-start';
-                    if (Math.abs(pointerPx - endPx) <= proximity) return 'resize-end';
-                    return 'move';
-                };
-
-                const updateCursor = (event) => {
-                    if (dragState) return;
-                    const elements = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
-                    if (!elements.length) {
-                        canvas.style.cursor = 'default';
-                        return;
-                    }
-                    const mode = determineMode(event, elements[0]);
-                    canvas.style.cursor = mode && mode.startsWith('resize') ? 'ew-resize' : 'grab';
-                };
-
-                const beginDrag = (event) => {
-                    const pointerValue = getPointerValue(event);
-                    if (pointerValue === null) return;
-
-                    const elements = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
-                    if (!elements.length) return;
-
-                    const element = elements[0];
-                    const { dataPoint } = resolveDataPoint(element);
-                    if (!dataPoint || !Array.isArray(dataPoint.x)) return;
-
-                    const dragType = determineMode(event, element);
-                    if (!dragType) return;
-
-                    const [start, end] = getOrderedRange(dataPoint.x);
-
-                    dragState = {
-                        datasetIndex: element.datasetIndex,
-                        index: element.index,
-                        type: dragType,
-                        pointerId: event.pointerId,
-                        originalStart: start,
-                        originalEnd: end,
-                        duration: Math.max(end - start, MS_IN_DAY),
-                        offset: dragType === 'move'
-                            ? pointerValue - start
-                            : dragType === 'resize-start'
-                                ? pointerValue - start
-                                : pointerValue - end
-                    };
-
-                    canvas.setPointerCapture(event.pointerId);
-                    canvas.style.cursor = dragType === 'move' ? 'grabbing' : 'ew-resize';
-                    event.preventDefault();
-                };
-
-                const moveDrag = (event) => {
-                    if (!dragState) {
-                        updateCursor(event);
-                        return;
-                    }
-
-                    const pointerValue = getPointerValue(event);
-                    if (pointerValue === null) return;
-
-                    const dataset = chart.data.datasets[dragState.datasetIndex];
-                    const dataPoint = dataset?.data?.[dragState.index];
-                    if (!dataPoint || !Array.isArray(dataPoint.x)) return;
-
-                    let [currentStart, currentEnd] = getOrderedRange(dataPoint.x);
-                    const minBoundary = new Date(chart.options.scales.x.min).getTime();
-                    const maxBoundary = new Date(chart.options.scales.x.max).getTime();
-                    const minDuration = MS_IN_DAY;
-
-                    if (dragState.type === 'move') {
-                        const duration = Math.max(dragState.duration, minDuration);
-                        let newStart = pointerValue - dragState.offset;
-                        const latestStart = Math.max(minBoundary, maxBoundary - duration);
-
-                        if (newStart < minBoundary) newStart = minBoundary;
-                        if (newStart > latestStart) newStart = latestStart;
-
-                        newStart = snapToDay(newStart);
-                        let newEnd = newStart + duration;
-
-                        if (newEnd > maxBoundary) {
-                            const maxEnd = snapToDay(maxBoundary);
-                            let candidateStart = snapToDay(maxEnd - duration);
-                            if (candidateStart < minBoundary) {
-                                candidateStart = minBoundary;
-                            }
-                            newStart = candidateStart;
-                            newEnd = Math.min(newStart + duration, maxEnd);
-                        }
-
-                        dataPoint.x = [newStart, newEnd];
-                    } else if (dragState.type === 'resize-start') {
-                        let newStart = pointerValue - dragState.offset;
-                        const latestStart = currentEnd - minDuration;
-
-                        if (newStart > latestStart) newStart = latestStart;
-                        if (newStart < minBoundary) newStart = minBoundary;
-
-                        newStart = snapToDay(newStart);
-                        if (newStart > currentEnd - minDuration) {
-                            newStart = currentEnd - minDuration;
-                        }
-
-                        dataPoint.x = [newStart, currentEnd];
-                    } else if (dragState.type === 'resize-end') {
-                        let newEnd = pointerValue - dragState.offset;
-                        const earliestEnd = currentStart + minDuration;
-
-                        if (newEnd < earliestEnd) newEnd = earliestEnd;
-                        if (newEnd > maxBoundary) newEnd = maxBoundary;
-
-                        newEnd = snapToDay(newEnd);
-                        if (newEnd < currentStart + minDuration) {
-                            newEnd = currentStart + minDuration;
-                        }
-
-                        dataPoint.x = [currentStart, newEnd];
-                    }
-
-                    canvas.style.cursor = dragState.type === 'move' ? 'grabbing' : 'ew-resize';
-                    chart.update('none');
-                    event.preventDefault();
-                };
-
-                const endDrag = (event) => {
-                    if (!dragState) return;
-                    const dataset = chart.data.datasets[dragState.datasetIndex];
-                    const dataPoint = dataset?.data?.[dragState.index];
-                    if (!dataPoint) return;
-
-                    if (event.type === 'pointercancel') {
-                        dataPoint.x = [dragState.originalStart, dragState.originalEnd];
-                        chart.update('none');
-                    } else {
-                        finalizeTaskFromDataPoint(dataPoint);
-                    }
-
-                    if (canvas.hasPointerCapture(dragState.pointerId)) {
-                        canvas.releasePointerCapture(dragState.pointerId);
-                    }
-                    dragState = null;
-                    canvas.style.cursor = 'default';
-                    event.preventDefault();
-                };
-
-                canvas.addEventListener('pointerdown', beginDrag);
-                canvas.addEventListener('pointermove', moveDrag);
-                canvas.addEventListener('pointerup', endDrag);
-                canvas.addEventListener('pointercancel', endDrag);
-                canvas.addEventListener('pointerenter', updateCursor);
-                canvas.addEventListener('pointerleave', updateCursor);
-                canvas.style.touchAction = 'none';
-            }
-
-            function finalizeTaskFromDataPoint(dataPoint) {
-                if (!dataPoint || !Array.isArray(dataPoint.x)) return;
-
-                let [startMs, endMs] = dataPoint.x;
-                startMs = snapToDay(Math.min(startMs, endMs));
-                const minimumEnd = startMs + MS_IN_DAY;
-                endMs = snapToDay(Math.max(minimumEnd, Math.max(startMs, endMs)));
-                dataPoint.x = [startMs, endMs];
-
-                const task = tasks.find(t => t.id === dataPoint.taskId);
-                if (!task) return;
-
-                const startDate = new Date(startMs);
-                const endDate = new Date(endMs);
-                task.startDate = formatDate(startDate);
-                task.endDate = formatDate(endDate);
-                task.targetDate = formatDisplayRange(startDate, endDate);
-
-                state.timelineAdjusted = true;
-                renderTaskBoard(state.filteredTasks);
-                updateKPIs(state.filteredTasks);
-                renderGanttChart(state.filteredTasks);
+            function formatTickLabel(date) {
+                return displayDateFormatter.format(date);
             }
 
             async function saveNoteToGoogleSheet(task, noteText) {
@@ -832,11 +1254,247 @@
                 }
             }
 
-            function getChartColor(status, border = false) {
-                const alpha = border ? '1.0' : '0.6';
-                if (status === 'Completed') return `rgba(74, 222, 128, ${alpha})`;
-                if (status === 'In Progress') return `rgba(250, 204, 21, ${alpha})`;
-                return `rgba(156, 163, 175, ${alpha})`;
+            function openTaskEditor(taskId = null) {
+                const isNew = typeof taskId !== 'number';
+                const existingTask = isNew ? null : tasks.find(t => t.id === taskId);
+                if (!isNew && !existingTask) return;
+
+                const modal = document.getElementById('task-modal');
+                const modalTitle = document.getElementById('modal-title');
+                const modalSubtitle = document.getElementById('modal-subtitle');
+                const modalContent = document.getElementById('modal-content');
+                const modalEditBtn = document.getElementById('modal-edit-btn');
+                const modalDeleteBtn = document.getElementById('modal-delete-btn');
+
+                if (modalEditBtn) modalEditBtn.classList.add('hidden');
+                if (modalDeleteBtn) modalDeleteBtn.classList.add('hidden');
+
+                const today = new Date();
+                const defaultStart = formatDate(today);
+                const defaultEnd = formatDate(today);
+
+                const workingTask = isNew ? {
+                    action: '',
+                    description: '',
+                    phase: '',
+                    workstream: '',
+                    owner: '',
+                    status: boardStatuses[0],
+                    priority: 'Medium',
+                    startDate: defaultStart,
+                    endDate: defaultEnd,
+                    targetDate: '',
+                    dependencies: ''
+                } : { ...existingTask };
+
+                modalTitle.textContent = isNew ? 'Create Task' : 'Edit Task';
+                modalSubtitle.textContent = isNew ? 'Add a new item to the plan.' : `${existingTask.phase} • ${existingTask.workstream}`;
+
+                const phaseOptions = getTaskValueOptions('phase');
+                const workstreamOptions = getTaskValueOptions('workstream');
+                const ownerOptions = getTaskValueOptions('owner');
+                const statusOptions = boardStatuses.includes(workingTask.status) ? boardStatuses : [...boardStatuses, workingTask.status];
+                const priorityOptions = ['High', 'Medium', 'Low'];
+
+                const safe = value => escapeHtml(value ?? '');
+
+                const renderOptions = (options, current) => options.map(option => {
+                    const selected = option === current ? 'selected' : '';
+                    return `<option value="${escapeHtml(option)}" ${selected}>${escapeHtml(option)}</option>`;
+                }).join('');
+
+                modalContent.innerHTML = `
+                    <form id="task-form" class="space-y-6">
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div class="space-y-2 md:col-span-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" for="task-action">Title</label>
+                                <input id="task-action" name="action" type="text" value="${safe(workingTask.action)}" class="select-control" placeholder="Enter a short task title" required />
+                            </div>
+                            <div class="space-y-2 md:col-span-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" for="task-description">Description</label>
+                                <textarea id="task-description" name="description" rows="3" class="select-control" placeholder="Describe the work and desired outcome">${safe(workingTask.description)}</textarea>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" for="task-phase">Phase</label>
+                                <input id="task-phase" name="phase" type="text" value="${safe(workingTask.phase)}" class="select-control" list="phase-options" placeholder="e.g., 1: Foundation" required />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" for="task-workstream">Workstream</label>
+                                <input id="task-workstream" name="workstream" type="text" value="${safe(workingTask.workstream)}" class="select-control" list="workstream-options" placeholder="e.g., Proper Setup" required />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" for="task-owner">Owner</label>
+                                <input id="task-owner" name="owner" type="text" value="${safe(workingTask.owner)}" class="select-control" list="owner-options" placeholder="Publisher, Google, Both…" required />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" for="task-status">Status</label>
+                                <select id="task-status" name="status" class="select-control">
+                                    ${renderOptions(statusOptions, workingTask.status)}
+                                </select>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" for="task-priority">Priority</label>
+                                <select id="task-priority" name="priority" class="select-control">
+                                    ${renderOptions(priorityOptions, workingTask.priority)}
+                                </select>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" for="task-start">Start Date</label>
+                                <input id="task-start" name="startDate" type="date" value="${safe(workingTask.startDate)}" class="select-control" required />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" for="task-end">End Date</label>
+                                <input id="task-end" name="endDate" type="date" value="${safe(workingTask.endDate)}" class="select-control" required />
+                            </div>
+                            <div class="space-y-2 md:col-span-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" for="task-target">Target Label</label>
+                                <input id="task-target" name="targetDate" type="text" value="${safe(workingTask.targetDate)}" class="select-control" placeholder="Optional label (e.g., Week 3 or Q4)" />
+                            </div>
+                            <div class="space-y-2 md:col-span-2">
+                                <label class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500" for="task-dependencies">Dependencies / Notes</label>
+                                <textarea id="task-dependencies" name="dependencies" rows="2" class="select-control" placeholder="List blockers or cross-team needs">${safe(workingTask.dependencies)}</textarea>
+                            </div>
+                        </div>
+                        <p id="task-form-error" class="hidden text-sm font-semibold text-red-600"></p>
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            ${isNew ? '' : '<button type="button" id="task-form-delete" class="rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-500 transition hover:border-red-300 hover:text-red-600">Delete Task</button>'}
+                            <div class="flex items-center gap-3 ml-auto">
+                                <button type="button" id="task-form-cancel" class="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 transition hover:border-slate-300 hover:text-slate-700">Cancel</button>
+                                <button type="submit" class="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-slate-700">${isNew ? 'Create Task' : 'Save Changes'}</button>
+                            </div>
+                        </div>
+                    </form>
+                    <datalist id="phase-options">${phaseOptions.map(option => `<option value="${escapeHtml(option)}"></option>`).join('')}</datalist>
+                    <datalist id="workstream-options">${workstreamOptions.map(option => `<option value="${escapeHtml(option)}"></option>`).join('')}</datalist>
+                    <datalist id="owner-options">${ownerOptions.map(option => `<option value="${escapeHtml(option)}"></option>`).join('')}</datalist>
+                `;
+
+                const form = document.getElementById('task-form');
+                const cancelBtn = document.getElementById('task-form-cancel');
+                const deleteBtn = document.getElementById('task-form-delete');
+                const errorEl = document.getElementById('task-form-error');
+
+                const showError = (message) => {
+                    if (!errorEl) return;
+                    errorEl.textContent = message;
+                    errorEl.classList.remove('hidden');
+                };
+
+                const clearError = () => {
+                    if (!errorEl) return;
+                    errorEl.textContent = '';
+                    errorEl.classList.add('hidden');
+                };
+
+                form.addEventListener('input', clearError);
+
+                cancelBtn.addEventListener('click', () => {
+                    if (isNew) {
+                        modal.classList.add('hidden');
+                    } else {
+                        openTaskModal(existingTask.id);
+                    }
+                });
+
+                if (deleteBtn && !isNew) {
+                    deleteBtn.addEventListener('click', () => {
+                        if (!confirm('Delete this task? This cannot be undone.')) return;
+                        const index = tasks.findIndex(t => t.id === existingTask.id);
+                        if (index !== -1) {
+                            tasks.splice(index, 1);
+                        }
+                        state.filteredTasks = state.filteredTasks.filter(t => t.id !== existingTask.id);
+                        populateFilters({ preserveSelection: true });
+                        applyFilters();
+                        modal.classList.add('hidden');
+                    });
+                }
+
+                form.addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    clearError();
+
+                    const formData = new FormData(form);
+                    const action = (formData.get('action') || '').trim();
+                    const description = (formData.get('description') || '').trim();
+                    const phase = (formData.get('phase') || '').trim();
+                    const workstream = (formData.get('workstream') || '').trim();
+                    const owner = (formData.get('owner') || '').trim();
+                    const status = formData.get('status') || boardStatuses[0];
+                    const priority = formData.get('priority') || 'Medium';
+                    const startDateRaw = formData.get('startDate');
+                    const endDateRaw = formData.get('endDate');
+                    const targetDate = (formData.get('targetDate') || '').trim();
+                    const dependencies = (formData.get('dependencies') || '').trim();
+
+                    if (!action) {
+                        showError('Title is required.');
+                        return;
+                    }
+                    if (!phase) {
+                        showError('Phase is required.');
+                        return;
+                    }
+                    if (!workstream) {
+                        showError('Workstream is required.');
+                        return;
+                    }
+                    if (!owner) {
+                        showError('Owner is required.');
+                        return;
+                    }
+                    if (!startDateRaw || !endDateRaw) {
+                        showError('Provide both start and end dates.');
+                        return;
+                    }
+
+                    const startDate = new Date(startDateRaw);
+                    const endDate = new Date(endDateRaw);
+                    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+                        showError('Dates must be valid.');
+                        return;
+                    }
+                    if (startDate > endDate) {
+                        showError('End date cannot be before the start date.');
+                        return;
+                    }
+
+                    const normalizedTask = {
+                        action,
+                        description,
+                        phase,
+                        workstream,
+                        owner,
+                        status,
+                        priority,
+                        startDate: formatDate(startDate),
+                        endDate: formatDate(endDate),
+                        targetDate,
+                        dependencies
+                    };
+
+                    if (isNew) {
+                        const newTask = {
+                            id: nextTaskId++,
+                            notes: [],
+                            ...normalizedTask
+                        };
+                        tasks.push(newTask);
+                    } else {
+                        Object.assign(existingTask, normalizedTask);
+                    }
+
+                    populateFilters({ preserveSelection: true });
+                    applyFilters();
+
+                    if (isNew) {
+                        modal.classList.add('hidden');
+                    } else {
+                        openTaskModal(existingTask.id);
+                    }
+                });
+
+                modal.classList.remove('hidden');
             }
 
             function openTaskModal(taskId) {
@@ -845,23 +1503,76 @@
 
                 const modal = document.getElementById('task-modal');
                 const modalTitle = document.getElementById('modal-title');
+                const modalSubtitle = document.getElementById('modal-subtitle');
                 const modalContent = document.getElementById('modal-content');
-                modalTitle.textContent = task.action;
+                const modalEditBtn = document.getElementById('modal-edit-btn');
+                const modalDeleteBtn = document.getElementById('modal-delete-btn');
+
+                modalTitle.textContent = task.action || 'Task Details';
+                const subtitleParts = [task.phase, task.workstream]
+                    .map(part => typeof part === 'string' ? part.trim() : '')
+                    .filter(Boolean);
+                if (modalSubtitle) {
+                    modalSubtitle.textContent = subtitleParts.join(' • ');
+                }
+
+                if (modalEditBtn) {
+                    modalEditBtn.classList.remove('hidden');
+                    modalEditBtn.textContent = 'Edit';
+                    modalEditBtn.onclick = () => openTaskEditor(task.id);
+                }
+
+                if (modalDeleteBtn) {
+                    modalDeleteBtn.classList.remove('hidden');
+                    modalDeleteBtn.textContent = 'Delete';
+                    modalDeleteBtn.onclick = () => {
+                        if (!confirm('Delete this task? This cannot be undone.')) return;
+                        const index = tasks.findIndex(t => t.id === task.id);
+                        if (index !== -1) {
+                            tasks.splice(index, 1);
+                        }
+                        state.filteredTasks = state.filteredTasks.filter(t => t.id !== task.id);
+                        populateFilters({ preserveSelection: true });
+                        applyFilters();
+                        modal.classList.add('hidden');
+                    };
+                }
+
                 const priorityStyle = getPriorityStyles(task.priority);
                 const statusStyle = getStatusStyles(task.status);
+                const startDateObj = new Date(task.startDate);
+                const endDateObj = new Date(task.endDate);
+                const scheduleLabel = formatDisplayRange(startDateObj, endDateObj);
+                const scheduleText = `${scheduleLabel}${task.targetDate ? ' · ' + task.targetDate : ''}`;
+
+                const safeText = (value, fallback = '') => {
+                    if (typeof value === 'string' && value.trim()) {
+                        return escapeHtml(value);
+                    }
+                    return escapeHtml(fallback);
+                };
+
+                const descriptionHtml = safeText(task.description, 'No description provided.');
+                const ownerHtml = safeText(task.owner, '—');
+                const phaseHtml = safeText(task.phase, '—');
+                const workstreamHtml = safeText(task.workstream, '—');
+                const statusHtml = safeText(task.status, '—');
+                const priorityHtml = safeText(task.priority, '—');
+                const scheduleHtml = escapeHtml(scheduleText);
+                const dependenciesHtml = safeText(task.dependencies);
 
                 modalContent.innerHTML = `
                     <div class="space-y-4">
-                        <div><h4 class="font-semibold text-gray-700">Description</h4><p class="text-gray-600">${task.description}</p></div>
+                        <div><h4 class="font-semibold text-gray-700">Description</h4><p class="text-gray-600">${descriptionHtml}</p></div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
-                            <div><h4 class="font-semibold text-gray-700">Status</h4><span class="px-3 py-1 rounded-full text-sm font-semibold ${statusStyle.bg} ${statusStyle.text}">${task.status}</span></div>
-                            <div><h4 class="font-semibold text-gray-700">Priority</h4><div class="flex items-center"><span class="w-4 h-4 rounded-full ${priorityStyle.bg} mr-2"></span><span>${task.priority}</span></div></div>
-                            <div><h4 class="font-semibold text-gray-700">Owner</h4><p class="text-gray-600">${task.owner}</p></div>
-                            <div><h4 class="font-semibold text-gray-700">Phase</h4><p class="text-gray-600">${task.phase}</p></div>
-                            <div><h4 class="font-semibold text-gray-700">Timeline</h4><p class="text-gray-600">${new Date(task.startDate).toLocaleDateString()} - ${new Date(task.endDate).toLocaleDateString()} (${task.targetDate})</p></div>
-                            <div><h4 class="font-semibold text-gray-700">Workstream</h4><p class="text-gray-600">${task.workstream}</p></div>
+                            <div><h4 class="font-semibold text-gray-700">Status</h4><span class="px-3 py-1 rounded-full text-sm font-semibold ${statusStyle.bg} ${statusStyle.text}">${statusHtml}</span></div>
+                            <div><h4 class="font-semibold text-gray-700">Priority</h4><div class="flex items-center"><span class="w-4 h-4 rounded-full ${priorityStyle.bg} mr-2"></span><span>${priorityHtml}</span></div></div>
+                            <div><h4 class="font-semibold text-gray-700">Owner</h4><p class="text-gray-600">${ownerHtml}</p></div>
+                            <div><h4 class="font-semibold text-gray-700">Phase</h4><p class="text-gray-600">${phaseHtml}</p></div>
+                            <div><h4 class="font-semibold text-gray-700">Timeline</h4><p class="text-gray-600">${scheduleHtml}</p></div>
+                            <div><h4 class="font-semibold text-gray-700">Workstream</h4><p class="text-gray-600">${workstreamHtml}</p></div>
                         </div>
-                        ${task.dependencies ? `<div class="border-t pt-4"><h4 class="font-semibold text-gray-700">Dependencies/Notes</h4><p class="text-gray-600">${task.dependencies}</p></div>` : ''}
+                        ${task.dependencies ? `<div class="border-t pt-4"><h4 class="font-semibold text-gray-700">Dependencies/Notes</h4><p class="text-gray-600">${dependenciesHtml}</p></div>` : ''}
                         <div class="border-t pt-4">
                             <h4 class="font-semibold text-gray-700 mb-2">Notes</h4>
                             <div id="modal-notes-list" class="space-y-2 max-h-40 overflow-y-auto pr-2 mb-4"></div>
@@ -877,7 +1588,7 @@
                     const notesListEl = document.getElementById('modal-notes-list');
                     if (task.notes && task.notes.length > 0) {
                         notesListEl.innerHTML = task.notes.map(note =>
-                            `<div class="bg-gray-100 p-3 rounded-md text-gray-800 text-sm whitespace-pre-wrap">${note}</div>`
+                            `<div class="bg-gray-100 p-3 rounded-md text-gray-800 text-sm whitespace-pre-wrap">${escapeHtml(note)}</div>`
                         ).join('');
                     } else {
                         notesListEl.innerHTML = '<p class="text-gray-400 text-sm">No notes yet.</p>';
@@ -965,19 +1676,16 @@
                 state.currentView = viewName;
                 document.querySelectorAll('.nav-tab').forEach(tab => {
                     tab.classList.toggle('nav-active', tab.dataset.view === viewName);
-                    tab.classList.toggle('border-transparent', tab.dataset.view !== viewName);
-                    tab.classList.toggle('text-gray-500', tab.dataset.view !== viewName);
+                    tab.classList.toggle('text-slate-500', tab.dataset.view !== viewName);
                 });
                 document.getElementById('board-view').classList.toggle('hidden', viewName !== 'board');
                 document.getElementById('timeline-view').classList.toggle('hidden', viewName !== 'timeline');
+                if (viewName === 'timeline') {
+                    renderTimeline(state.filteredTasks);
+                }
             }
             
             document.getElementById('nav-tabs').addEventListener('click', e => e.target.matches('.nav-tab') && switchView(e.target.dataset.view));
-            document.getElementById('phaseFilter').addEventListener('change', applyFilters);
-            document.getElementById('workstreamFilter').addEventListener('change', applyFilters);
-            document.getElementById('ownerFilter').addEventListener('change', applyFilters);
-            document.getElementById('priorityFilter').addEventListener('change', applyFilters);
-            
             const modal = document.getElementById('task-modal');
             const closeBtn = document.getElementById('modal-close-btn');
             const closeModal = () => modal.classList.add('hidden');
@@ -985,6 +1693,17 @@
             modal.addEventListener('click', e => (e.target.id === 'task-modal') && closeModal());
             
             populateFilters();
+
+            const addTaskButton = document.getElementById('add-task-btn');
+            if (addTaskButton) {
+                addTaskButton.addEventListener('click', () => openTaskEditor());
+            }
+
+            document.getElementById('phaseFilter').addEventListener('change', applyFilters);
+            document.getElementById('workstreamFilter').addEventListener('change', applyFilters);
+            document.getElementById('ownerFilter').addEventListener('change', applyFilters);
+            document.getElementById('priorityFilter').addEventListener('change', applyFilters);
+            document.getElementById('dateOrderFilter').addEventListener('change', applyFilters);
             applyFilters();
             switchView('board');
         });
