@@ -174,9 +174,23 @@
                 { phase: '7: Continuous Improvement', workstream: 'Stay Updated', action: 'Review GAM Help Center & Announcements', description: 'Regularly review the Google Ad Manager Help Center and product announcements for new mobile app monetization features.', owner: 'Both', status: 'Not Started', priority: 'Low', targetDate: 'Ongoing', dependencies: '' },
             ];
 
-            const GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/a/macros/google.com/s/AKfycbxF1GPrIrRqAVXGanUWh6QkXzvEb1I5BtqqiePksGY/dev'; // Replace with Apps Script web app URL to enable Google Sheet writes
+            const GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbxF1GPrIrRqAVXGanUWh6QkXzvEb1I5BtqqiePksGY/exec'; // Replace with Apps Script web app URL to enable Google Sheet writes
 
             const formatDate = (date) => date.toISOString().split('T')[0];
+            const MS_IN_DAY = 24 * 60 * 60 * 1000;
+            const displayDateFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
+            function snapToDay(timestamp) {
+                const date = new Date(timestamp);
+                date.setUTCHours(0, 0, 0, 0);
+                return date.getTime();
+            }
+
+            function formatDisplayRange(startDate, endDate) {
+                const startLabel = displayDateFormatter.format(startDate);
+                const endLabel = displayDateFormatter.format(endDate);
+                return startLabel === endLabel ? startLabel : `${startLabel} – ${endLabel}`;
+            }
 
             function getDateRangeFromTarget(targetDate) {
                 const baseDate = new Date('2025-09-29T12:00:00Z'); // Project start: Monday, Sep 29, 2025
@@ -467,12 +481,13 @@
 
             function initializeChart() {
                 const ctx = document.getElementById('ganttChart').getContext('2d');
-                return new Chart(ctx, {
+                const chart = new Chart(ctx, {
                     type: 'bar',
                     options: {
                         indexAxis: 'y',
                         responsive: true,
                         maintainAspectRatio: false,
+                        animation: false,
                         plugins: {
                             legend: { display: false },
                             tooltip: {
@@ -495,6 +510,8 @@
                         }
                     }
                 });
+                enableTimelineDragging(chart);
+                return chart;
             }
 
             function renderGanttChart(filteredTasks) {
@@ -515,19 +532,155 @@
                     return taskEnd >= startBoundary && taskStart <= endBoundary;
                 });
 
-                const data = visibleTasks.map(task => ({
-                    x: [new Date(task.startDate), new Date(task.endDate)],
-                    y: task.action,
-                    label: task.action,
-                    backgroundColor: getChartColor(task.status),
-                    borderColor: getChartColor(task.status, true),
-                    borderWidth: 1,
-                    barPercentage: 0.6,
-                }));
+                const data = visibleTasks.map(task => {
+                    const startMs = new Date(task.startDate).getTime();
+                    const endMs = new Date(task.endDate).getTime();
+                    return {
+                        x: [startMs, endMs],
+                        y: task.action,
+                        label: task.action,
+                        taskId: task.id,
+                        backgroundColor: getChartColor(task.status),
+                        borderColor: getChartColor(task.status, true),
+                        borderWidth: 1,
+                        barPercentage: 0.6,
+                    };
+                });
 
                 ganttChart.data.labels = data.map(d => d.y);
-                ganttChart.data.datasets = [{ data }];
+                ganttChart.data.datasets = [{ data, parsing: false, borderSkipped: false }];
                 ganttChart.update();
+            }
+
+            function enableTimelineDragging(chart) {
+                const canvas = chart.canvas;
+                let dragState = null;
+
+                const getPointerValue = (event) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const value = chart.scales.x.getValueForPixel(x);
+                    return Number.isNaN(value) ? null : value;
+                };
+
+                const updateCursor = (event) => {
+                    if (dragState) return;
+                    const elements = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
+                    canvas.style.cursor = elements.length ? 'grab' : 'default';
+                };
+
+                const beginDrag = (event) => {
+                    const pointerValue = getPointerValue(event);
+                    if (pointerValue === null) return;
+
+                    const elements = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
+                    if (!elements.length) return;
+
+                    const element = elements[0];
+                    const dataset = chart.data.datasets[element.datasetIndex];
+                    const dataPoint = dataset?.data?.[element.index];
+                    if (!dataPoint || !Array.isArray(dataPoint.x)) return;
+
+                    const start = Math.min(dataPoint.x[0], dataPoint.x[1]);
+                    const end = Math.max(dataPoint.x[0], dataPoint.x[1]);
+                    dragState = {
+                        datasetIndex: element.datasetIndex,
+                        index: element.index,
+                        offset: pointerValue - start,
+                        widthDays: Math.max(Math.round((end - start) / MS_IN_DAY), 1),
+                        pointerId: event.pointerId
+                    };
+
+                    canvas.setPointerCapture(event.pointerId);
+                    canvas.style.cursor = 'grabbing';
+                    event.preventDefault();
+                };
+
+                const moveDrag = (event) => {
+                    if (!dragState) {
+                        updateCursor(event);
+                        return;
+                    }
+
+                    const pointerValue = getPointerValue(event);
+                    if (pointerValue === null) return;
+
+                    const minBoundary = new Date(chart.options.scales.x.min).getTime();
+                    const maxBoundary = new Date(chart.options.scales.x.max).getTime();
+                    const duration = dragState.widthDays * MS_IN_DAY;
+
+                    let newStart = pointerValue - dragState.offset;
+                    const latestStart = Math.max(minBoundary, maxBoundary - duration);
+
+                    if (newStart < minBoundary) newStart = minBoundary;
+                    if (newStart > latestStart) newStart = latestStart;
+
+                    newStart = snapToDay(newStart);
+                    let newEnd = newStart + duration;
+
+                    if (newEnd > maxBoundary) {
+                        const maxEnd = snapToDay(maxBoundary);
+                        let candidateStart = snapToDay(maxEnd - duration);
+                        if (candidateStart < minBoundary) {
+                            candidateStart = minBoundary;
+                        }
+                        newStart = candidateStart;
+                        newEnd = Math.min(newStart + duration, maxEnd);
+                    }
+
+                    const dataset = chart.data.datasets[dragState.datasetIndex];
+                    const dataPoint = dataset.data[dragState.index];
+                    dataPoint.x = [newStart, newEnd];
+                    chart.update('none');
+                    event.preventDefault();
+                };
+
+                const endDrag = (event) => {
+                    if (!dragState) return;
+                    const dataset = chart.data.datasets[dragState.datasetIndex];
+                    const dataPoint = dataset.data[dragState.index];
+                    finalizeTaskFromDataPoint(dataPoint);
+                    dragState = null;
+                    if (canvas.hasPointerCapture(event.pointerId)) {
+                        canvas.releasePointerCapture(event.pointerId);
+                    }
+                    canvas.style.cursor = 'default';
+                    event.preventDefault();
+                };
+
+                canvas.addEventListener('pointerdown', beginDrag);
+                canvas.addEventListener('pointermove', moveDrag);
+                canvas.addEventListener('pointerup', endDrag);
+                canvas.addEventListener('pointercancel', endDrag);
+                canvas.addEventListener('pointerenter', updateCursor);
+                canvas.addEventListener('pointerleave', () => {
+                    if (!dragState) canvas.style.cursor = 'default';
+                });
+                canvas.style.touchAction = 'none';
+            }
+
+            function finalizeTaskFromDataPoint(dataPoint) {
+                if (!dataPoint || !Array.isArray(dataPoint.x)) return;
+
+                let [startMs, endMs] = dataPoint.x;
+                startMs = snapToDay(Math.min(startMs, endMs));
+                const minimumEnd = startMs + MS_IN_DAY;
+                endMs = snapToDay(Math.max(minimumEnd, Math.max(startMs, endMs)));
+                dataPoint.x = [startMs, endMs];
+
+                const task = tasks.find(t => t.id === dataPoint.taskId);
+                if (!task) return;
+
+                const startDate = new Date(startMs);
+                const endDate = new Date(endMs);
+                task.startDate = formatDate(startDate);
+                task.endDate = formatDate(endDate);
+                task.targetDate = formatDisplayRange(startDate, endDate);
+
+                state.timelineAdjusted = true;
+                renderTaskBoard(state.filteredTasks);
+                updateKPIs(state.filteredTasks);
+                renderGanttChart(state.filteredTasks);
             }
 
             async function saveNoteToGoogleSheet(task, noteText) {
