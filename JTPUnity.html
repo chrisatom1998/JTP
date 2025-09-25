@@ -147,11 +147,11 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const rawTasks = [
-                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Integrate Google Mobile Ads (GMA) SDK', description: 'Ensure the latest version of the GMA SDK for both Android and iOS is implemented. Consider Firebase integration for enhanced analytics.', owner: 'Publisher', status: 'Not Started', priority: 'High', targetDate: 'Week 1', dependencies: 'Requires app developer resources.' },
-                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Register Apps in GAM', description: 'Accurately add the mobile apps within the GAM interface under `Inventory > Apps`.', owner: 'Publisher', status: 'Not Started', priority: 'High', targetDate: 'Week 1', dependencies: 'Must be done before ad units can be created.' },
-                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Strategic Ad Unit Structure', description: 'Design ad units to differentiate between apps, OS (iOS/Android), and placements. This enables granular targeting and reporting.', owner: 'Both', status: 'Not Started', priority: 'Medium', targetDate: 'Week 2', dependencies: 'Collaborative session to define the optimal structure.' },
-                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Use Key-Values', description: 'Implement key-value targeting to pass custom parameters from the app (e.g., user segments, content categories) to GAM for precise targeting.', owner: 'Publisher', status: 'Not Started', priority: 'Medium', targetDate: 'Week 3', dependencies: 'Requires app-side development work.' },
-                { phase: '2: Ad Format Implementation', workstream: 'Leverage High-Performing Ad Formats', action: 'Implement Adaptive Banners', description: 'Use Adaptive Banners to automatically optimize banner size across different devices, maximizing performance.', owner: 'Publisher', status: 'Not Started', priority: 'Medium', targetDate: 'Week 4', dependencies: '' },
+                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Integrate Google Mobile Ads (GMA) SDK', description: 'Ensure the latest version of the GMA SDK for both Android and iOS is implemented. Consider Firebase integration for enhanced analytics.', owner: 'Publisher', status: 'Completed', priority: 'High', targetDate: 'Week 1', dependencies: 'Requires app developer resources.' },
+                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Register Apps in GAM', description: 'Accurately add the mobile apps within the GAM interface under `Inventory > Apps`.', owner: 'Publisher', status: 'Completed', priority: 'High', targetDate: 'Week 1', dependencies: 'Must be done before ad units can be created.' },
+                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Strategic Ad Unit Structure', description: 'Design ad units to differentiate between apps, OS (iOS/Android), and placements. This enables granular targeting and reporting.', owner: 'Both', status: 'In Progress', priority: 'Medium', targetDate: 'Week 2', dependencies: 'Collaborative session to define the optimal structure.' },
+                { phase: '1: Foundation & Setup', workstream: 'Proper Setup & Inventory Design', action: 'Use Key-Values', description: 'Implement key-value targeting to pass custom parameters from the app (e.g., user segments, content categories) to GAM for precise targeting.', owner: 'Publisher', status: 'In Progress', priority: 'Medium', targetDate: 'Week 3', dependencies: 'Requires app-side development work.' },
+                { phase: '2: Ad Format Implementation', workstream: 'Leverage High-Performing Ad Formats', action: 'Implement Adaptive Banners', description: 'Use Adaptive Banners to automatically optimize banner size across different devices, maximizing performance.', owner: 'Publisher', status: 'In Progress', priority: 'Medium', targetDate: 'Week 4', dependencies: '' },
                 { phase: '2: Ad Format Implementation', workstream: 'Leverage High-Performing Ad Formats', action: 'Implement Interstitial Ads', description: 'Implement interstitials at natural breaks in the app experience (e.g., between game levels, after completing a task). Goal: Increase session eCPM by 10-15% without negatively impacting user retention metrics.', owner: 'Publisher', status: 'Not Started', priority: 'High', targetDate: 'Week 4', dependencies: 'Identify appropriate trigger points in the app flow.' },
                 { phase: '2: Ad Format Implementation', workstream: 'Leverage High-Performing Ad Formats', action: 'Implement Native Ads', description: "Create Native ad formats that match the look and feel of the app's content for a better user experience and higher engagement.", owner: 'Publisher', status: 'Not Started', priority: 'Medium', targetDate: 'Week 5', dependencies: 'Requires design and development resources to match app UI.' },
                 { phase: '2: Ad Format Implementation', workstream: 'Leverage High-Performing Ad Formats', action: 'Implement Rewarded Ads', description: 'Offer users in-app rewards in exchange for watching an ad. Excellent for engagement in gaming or content apps.', owner: 'Publisher', status: 'Not Started', priority: 'High', targetDate: 'Week 5', dependencies: 'Define reward structure and integration points.' },
@@ -556,17 +556,51 @@
                 const canvas = chart.canvas;
                 let dragState = null;
 
-                const getPointerValue = (event) => {
+                const getPointerPixel = (event) => {
                     const rect = canvas.getBoundingClientRect();
-                    const x = event.clientX - rect.left;
-                    const value = chart.scales.x.getValueForPixel(x);
+                    return event.clientX - rect.left;
+                };
+
+                const getPointerValue = (event) => {
+                    const value = chart.scales.x.getValueForPixel(getPointerPixel(event));
                     return Number.isNaN(value) ? null : value;
+                };
+
+                const resolveDataPoint = (element) => {
+                    if (!element) return {};
+                    const dataset = chart.data.datasets[element.datasetIndex];
+                    const dataPoint = dataset?.data?.[element.index];
+                    return { dataset, dataPoint };
+                };
+
+                const getOrderedRange = (range) => {
+                    const start = Math.min(range[0], range[1]);
+                    const end = Math.max(range[0], range[1]);
+                    return [start, end];
+                };
+
+                const determineMode = (event, element) => {
+                    const { dataPoint } = resolveDataPoint(element);
+                    if (!dataPoint || !Array.isArray(dataPoint.x)) return null;
+                    const [start, end] = getOrderedRange(dataPoint.x);
+                    const pointerPx = getPointerPixel(event);
+                    const startPx = chart.scales.x.getPixelForValue(start);
+                    const endPx = chart.scales.x.getPixelForValue(end);
+                    const proximity = 8;
+                    if (Math.abs(pointerPx - startPx) <= proximity) return 'resize-start';
+                    if (Math.abs(pointerPx - endPx) <= proximity) return 'resize-end';
+                    return 'move';
                 };
 
                 const updateCursor = (event) => {
                     if (dragState) return;
                     const elements = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
-                    canvas.style.cursor = elements.length ? 'grab' : 'default';
+                    if (!elements.length) {
+                        canvas.style.cursor = 'default';
+                        return;
+                    }
+                    const mode = determineMode(event, elements[0]);
+                    canvas.style.cursor = mode && mode.startsWith('resize') ? 'ew-resize' : 'grab';
                 };
 
                 const beginDrag = (event) => {
@@ -577,22 +611,31 @@
                     if (!elements.length) return;
 
                     const element = elements[0];
-                    const dataset = chart.data.datasets[element.datasetIndex];
-                    const dataPoint = dataset?.data?.[element.index];
+                    const { dataPoint } = resolveDataPoint(element);
                     if (!dataPoint || !Array.isArray(dataPoint.x)) return;
 
-                    const start = Math.min(dataPoint.x[0], dataPoint.x[1]);
-                    const end = Math.max(dataPoint.x[0], dataPoint.x[1]);
+                    const dragType = determineMode(event, element);
+                    if (!dragType) return;
+
+                    const [start, end] = getOrderedRange(dataPoint.x);
+
                     dragState = {
                         datasetIndex: element.datasetIndex,
                         index: element.index,
-                        offset: pointerValue - start,
-                        widthDays: Math.max(Math.round((end - start) / MS_IN_DAY), 1),
-                        pointerId: event.pointerId
+                        type: dragType,
+                        pointerId: event.pointerId,
+                        originalStart: start,
+                        originalEnd: end,
+                        duration: Math.max(end - start, MS_IN_DAY),
+                        offset: dragType === 'move'
+                            ? pointerValue - start
+                            : dragType === 'resize-start'
+                                ? pointerValue - start
+                                : pointerValue - end
                     };
 
                     canvas.setPointerCapture(event.pointerId);
-                    canvas.style.cursor = 'grabbing';
+                    canvas.style.cursor = dragType === 'move' ? 'grabbing' : 'ew-resize';
                     event.preventDefault();
                 };
 
@@ -605,32 +648,66 @@
                     const pointerValue = getPointerValue(event);
                     if (pointerValue === null) return;
 
+                    const dataset = chart.data.datasets[dragState.datasetIndex];
+                    const dataPoint = dataset?.data?.[dragState.index];
+                    if (!dataPoint || !Array.isArray(dataPoint.x)) return;
+
+                    let [currentStart, currentEnd] = getOrderedRange(dataPoint.x);
                     const minBoundary = new Date(chart.options.scales.x.min).getTime();
                     const maxBoundary = new Date(chart.options.scales.x.max).getTime();
-                    const duration = dragState.widthDays * MS_IN_DAY;
+                    const minDuration = MS_IN_DAY;
 
-                    let newStart = pointerValue - dragState.offset;
-                    const latestStart = Math.max(minBoundary, maxBoundary - duration);
+                    if (dragState.type === 'move') {
+                        const duration = Math.max(dragState.duration, minDuration);
+                        let newStart = pointerValue - dragState.offset;
+                        const latestStart = Math.max(minBoundary, maxBoundary - duration);
 
-                    if (newStart < minBoundary) newStart = minBoundary;
-                    if (newStart > latestStart) newStart = latestStart;
+                        if (newStart < minBoundary) newStart = minBoundary;
+                        if (newStart > latestStart) newStart = latestStart;
 
-                    newStart = snapToDay(newStart);
-                    let newEnd = newStart + duration;
+                        newStart = snapToDay(newStart);
+                        let newEnd = newStart + duration;
 
-                    if (newEnd > maxBoundary) {
-                        const maxEnd = snapToDay(maxBoundary);
-                        let candidateStart = snapToDay(maxEnd - duration);
-                        if (candidateStart < minBoundary) {
-                            candidateStart = minBoundary;
+                        if (newEnd > maxBoundary) {
+                            const maxEnd = snapToDay(maxBoundary);
+                            let candidateStart = snapToDay(maxEnd - duration);
+                            if (candidateStart < minBoundary) {
+                                candidateStart = minBoundary;
+                            }
+                            newStart = candidateStart;
+                            newEnd = Math.min(newStart + duration, maxEnd);
                         }
-                        newStart = candidateStart;
-                        newEnd = Math.min(newStart + duration, maxEnd);
+
+                        dataPoint.x = [newStart, newEnd];
+                    } else if (dragState.type === 'resize-start') {
+                        let newStart = pointerValue - dragState.offset;
+                        const latestStart = currentEnd - minDuration;
+
+                        if (newStart > latestStart) newStart = latestStart;
+                        if (newStart < minBoundary) newStart = minBoundary;
+
+                        newStart = snapToDay(newStart);
+                        if (newStart > currentEnd - minDuration) {
+                            newStart = currentEnd - minDuration;
+                        }
+
+                        dataPoint.x = [newStart, currentEnd];
+                    } else if (dragState.type === 'resize-end') {
+                        let newEnd = pointerValue - dragState.offset;
+                        const earliestEnd = currentStart + minDuration;
+
+                        if (newEnd < earliestEnd) newEnd = earliestEnd;
+                        if (newEnd > maxBoundary) newEnd = maxBoundary;
+
+                        newEnd = snapToDay(newEnd);
+                        if (newEnd < currentStart + minDuration) {
+                            newEnd = currentStart + minDuration;
+                        }
+
+                        dataPoint.x = [currentStart, newEnd];
                     }
 
-                    const dataset = chart.data.datasets[dragState.datasetIndex];
-                    const dataPoint = dataset.data[dragState.index];
-                    dataPoint.x = [newStart, newEnd];
+                    canvas.style.cursor = dragState.type === 'move' ? 'grabbing' : 'ew-resize';
                     chart.update('none');
                     event.preventDefault();
                 };
@@ -638,12 +715,20 @@
                 const endDrag = (event) => {
                     if (!dragState) return;
                     const dataset = chart.data.datasets[dragState.datasetIndex];
-                    const dataPoint = dataset.data[dragState.index];
-                    finalizeTaskFromDataPoint(dataPoint);
-                    dragState = null;
-                    if (canvas.hasPointerCapture(event.pointerId)) {
-                        canvas.releasePointerCapture(event.pointerId);
+                    const dataPoint = dataset?.data?.[dragState.index];
+                    if (!dataPoint) return;
+
+                    if (event.type === 'pointercancel') {
+                        dataPoint.x = [dragState.originalStart, dragState.originalEnd];
+                        chart.update('none');
+                    } else {
+                        finalizeTaskFromDataPoint(dataPoint);
                     }
+
+                    if (canvas.hasPointerCapture(dragState.pointerId)) {
+                        canvas.releasePointerCapture(dragState.pointerId);
+                    }
+                    dragState = null;
                     canvas.style.cursor = 'default';
                     event.preventDefault();
                 };
@@ -653,9 +738,7 @@
                 canvas.addEventListener('pointerup', endDrag);
                 canvas.addEventListener('pointercancel', endDrag);
                 canvas.addEventListener('pointerenter', updateCursor);
-                canvas.addEventListener('pointerleave', () => {
-                    if (!dragState) canvas.style.cursor = 'default';
-                });
+                canvas.addEventListener('pointerleave', updateCursor);
                 canvas.style.touchAction = 'none';
             }
 
