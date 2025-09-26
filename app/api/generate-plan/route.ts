@@ -129,7 +129,7 @@ function tactics(inventory: InventoryProfile[], constraints: BusinessConstraints
           "- Upgrade Google Mobile Ads SDK to version " + sdkTarget + " for Android/iOS.",
           "- In AdMob → Mediation → Ad sources, enable bidding for " + biddingPartners.join(", ") + ".",
           "- Migrate top waterfall instances to bidding; keep a Tier-3 fallback waterfall.",
-          "- Set up Firebase Remote Config experiment: `bidding_migration_" + Math.random().toString(36).slice(2, 6) + "`.",
+          "- Set up Firebase Remote Config experiment: `bidding_migration_" + Date.now().toString(36) + "`.",
           "",
           "**Metrics to monitor:**",
           "- Target eCPM uplift: +15–25%",
