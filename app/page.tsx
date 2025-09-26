@@ -113,7 +113,7 @@ export default function Page() {
   const addAdUnit = (invIdx: number) => {
     const inv = request.inventory[invIdx];
     const newUnit: AdUnitMetrics = {
-      ad_unit_id: `new_${Math.random().toString(36).slice(2, 7)}`,
+      ad_unit_id: `new_${crypto.randomUUID()}`,
       format: "interstitial",
       platform: "android",
       avg_ecpm: 4.0,
